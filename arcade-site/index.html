@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07080d">
+<title>أركيد — بوابة الألعاب</title>
+<meta name="description" content="شغّل ألعاب المتصفح مباشرة على هاتفك أو حاسوبك.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="nav">
+  <a class="brand" href="/">
+    <span class="brand-mark">◈</span>
+    <span class="brand-text">أركيد<em>ARCADE</em></span>
+  </a>
+  <div class="nav-right">
+    <div class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 104.47 10.03l4.25 4.25 1.41-1.41-4.25-4.25A6 6 0 0010 4zm0 2a4 4 0 110 8 4 4 0 010-8z"/></svg>
+      <input id="q" type="search" placeholder="ابحث عن لعبة…" autocomplete="off" aria-label="بحث">
+    </div>
+    <button class="ghost" id="share" title="انسخ رابطي الشخصي">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 16.1a2.9 2.9 0 00-2 0l-6-6a2.9 2.9 0 000-2l6-6a3 3 0 10-1.2-1.2l-6 6a3 3 0 100 4.2l6 6a3 3 0 103.2-1z" transform="translate(0 2) scale(.86)"/></svg>
+      <span>رابطي</span>
+    </button>
+    <button class="player" id="player" title="ملف اللاعب — اضغط لتغيير الاسم">
+      <span class="pav" id="pav">؟</span>
+      <span class="pmeta"><span id="pname">لاعب</span><small>مفضّلة <b id="favcount"></b></small></span>
+    </button>
+  </div>
+</header>
+
+<section class="hero">
+  <p class="eyebrow">شغّلها من المتصفح — جوال أو حاسوب</p>
+  <h1>العبي <span class="grad">بلا حدود</span></h1>
+  <p class="sub">مجموعة ألعاب مختارة تعمل مباشرة من المتصفح، مع تجاوز شفّاف لفحوصات الأجهزة كي تعمل على هاتفك.</p>
+  <div class="filters" id="filters" role="tablist">
+    <button class="chip is-on" data-f="all">الكل</button>
+    <button class="chip" data-f="mobile">تعمل على الجوال</button>
+    <button class="chip" data-f="multi">جماعية</button>
+    <button class="chip" data-f="heavy">ثقيلة</button>
+    <button class="chip" data-f="fav">★ المفضّلة</button>
+  </div>
+</section>
+
+<main>
+  <div class="status" id="status">جارٍ التحميل…</div>
+  <section class="recent" id="recent" hidden></section>
+  <section class="grid" id="grid" aria-live="polite"></section>
+</main>
+
+<footer class="foot">
+  <span>أركيد · بوابة تشغيل ألعاب المتصفح</span>
+  <span class="dot"></span>
+  <span id="count">0 لعبة</span>
+</footer>
+
+<script src="/__shim.js"></script>
+<script src="/config.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
