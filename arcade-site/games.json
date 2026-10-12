@@ -27,7 +27,12 @@
     "sandstorm": "sandstorm.ink",
     "saltyseas": "saltyseas.io",
     "tweetcraft": "tweetcraft.jai.vin",
-    "wasmarcade": "wasmarcade.com"
+    "wasmarcade": "wasmarcade.com",
+    "surfd": "surfd.net",
+    "parkbaron": "parkbaron.com",
+    "combatskirmish": "combatskirmish.net",
+    "haloex": "halo.exenu.co.uk",
+    "ovz": "ovz-game-production.up.railway.app"
   },
   "iso": ["velgg"],
   "root_mounts": { "/bo1z": "velgg" },
@@ -100,6 +105,11 @@
     { "name": "Minecraft (Wasm)", "key": "wasmarcade", "path": "minecraft", "tags": ["mobile", "multi", "heavy"] },
     { "name": "Simpsons (Wasm)", "key": "wasmarcade", "path": "simpsons", "tags": ["mobile"] },
     { "name": "Flash Games", "key": "wasmarcade", "path": "flash-games", "tags": ["mobile"] },
-    { "name": "Retro Games", "key": "wasmarcade", "path": "retro-games", "tags": ["mobile"] }
+    { "name": "Retro Games", "key": "wasmarcade", "path": "retro-games", "tags": ["mobile"] },
+    { "name": "Surfd", "key": "surfd", "path": "", "tags": ["mobile", "multi", "heavy"] },
+    { "name": "Park Baron", "key": "parkbaron", "path": "play", "tags": ["mobile"] },
+    { "name": "CS 1.6 Online", "key": "combatskirmish", "path": "quickjoin", "tags": ["multi", "heavy"] },
+    { "name": "Halo: Combat Evolved", "key": "haloex", "path": "", "tags": ["multi", "heavy"] },
+    { "name": "Contemporary Conflict", "key": "ovz", "path": "", "tags": ["heavy"] }
   ]
 }
