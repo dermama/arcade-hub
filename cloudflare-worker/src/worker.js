@@ -5,7 +5,7 @@ import CFG from "./games.json";
 const HOSTS = CFG.hosts;
 const ISO = new Set(CFG.iso || []);
 const ROOT = CFG.root_mounts || {};
-const SHIM_TAG = '<script src="/__shim.js?v=3"></script>';
+const SHIM_TAG = '<script src="/__shim.js?v=4"></script>';
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -59,16 +59,16 @@ function clearTokens(u) {
 function clearPage(u) {
   const tokens = clearTokens(u);
   const t = JSON.stringify(tokens);
-  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>…</title><style>
+  return `<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title>…</title><style>
 body{background:transparent;color:#eef1f8;font-family:system-ui,sans-serif;margin:0;padding:14px}
-</style></head><body><div id="msg">جاري مسح بيانات اللعبة…</div>
+</style></head><body><div id="msg">Clearing game data…</div>
 <script>
 (function(){
   var tokens=${t};
   var res={ok:false,caches:0,idb:0,ls:0,ss:0,opfs:0,error:"none"};
   function match(s){s=String(s).toLowerCase();for(var i=0;i<tokens.length;i++){if(s.indexOf(tokens[i])>-1)return true;}return false;}
   var msgs=[];
-  function done(){try{parent.postMessage({type:"arcade:clear-result",result:res},"*");}catch(e){}try{window.opener&&window.opener.postMessage({type:"arcade:clear-result",result:res},"*");}catch(e){}try{var m=document.getElementById("msg");if(m){m.textContent=res.error==="none"?"تم مسح البيانات ✓":"اكتمل المسح (مع تحفظات).";}}catch(e){}setTimeout(function(){try{self.close();}catch(e){}},350);}
+  function done(){try{parent.postMessage({type:"arcade:clear-result",result:res},"*");}catch(e){}try{window.opener&&window.opener.postMessage({type:"arcade:clear-result",result:res},"*");}catch(e){}try{var m=document.getElementById("msg");if(m){m.textContent=res.error==="none"?"Data cleared ✓":"Clear finished (with caveats).";}}catch(e){}setTimeout(function(){try{self.close();}catch(e){}},350);}
   function p1(next){try{caches.keys().then(function(ks){if(ks&&navigator.serviceWorker&&navigator.serviceWorker.controller&&false){}for(var i=0;i<ks.length;i++){if(match(ks[i])){caches.delete(ks[i]).then(function(){res.caches++;next();});return;}}next();}).catch(function(){next();});}catch(e){res.error="caches:"+e.message;next();}}
   function p2(next){try{var db2=indexedDB.databases;if(!db2){next();return;}db2.call(indexedDB).then(function(dbs){var i=0;function step(){if(i>=dbs.length){next();return;}var d=dbs[i++];if(d&&match(d.name||"")){try{indexedDB.deleteDatabase(d.name).onsuccess=function(){res.idb++;step();};indexedDB.deleteDatabase(d.name).onerror=step;indexedDB.deleteDatabase(d.name).onblocked=step;}catch(e){step();}}else{step();}}step();}).catch(function(){next();});}catch(e){res.error="idb:"+e.message;next();}}
   function p3(next){try{var L=[window.localStorage,window.sessionStorage];for(var s=0;s<L.length;s++){for(var i=L[s].length-1;i>=0;i--){var k=L[s].key(i);if(match(k)){$:s===0?res.ls++:res.ss++;try{L[s].removeItem(k);}catch(e){}}}}next();}catch(e){res.error="stores:"+e.message;next();}}

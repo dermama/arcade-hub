@@ -1,27 +1,27 @@
 # arcade-gateway (Cloudflare Worker)
 
-بروكسي دائم يخدم ألعاب المتصفح المُقيَّدة: يحقن شيم `__shim.js`، ويعترض `capabilities.js`، ويصحّح الرؤوس (CORS / رؤوس ISO للـSharedArrayBuffer).
+A permanent proxy that serves restricted browser games: it injects the `__shim.js` script, intercepts `capabilities.js`, and fixes headers (CORS / ISO headers for SharedArrayBuffer).
 
-## ما يفعله
-- `GET /__shim.js` → يخدم شيم التمويه (سطح مكتب + ترميز WebGL).
-- `GET /__capabilities.js` و`GET /games.json` → يخدمان الموارد.
-- `GET /play/<key>/<...>` أو `/s/<key>/<...>` → بروكسي إلى مضيف اللعبة `key`.
-- `/<root_mount>/...` (مثل `/bo1z/...`) → بروكسي عبر جذر ثابت.
-- HTML المُعاد يُحقن فيه `<script src="/__shim.js"></script>`.
-- إن كانت اللعبة ضمن `iso` يُضاف `COOP: same-origin` و`COEP: require-corp` (لـSharedArrayBuffer).
+## What it does
+- `GET /__shim.js` → serves the spoofing shim (desktop surface + WebGL encoding).
+- `GET /__capabilities.js` and `GET /games.json` → serve the resources.
+- `GET /play/<key>/<...>` or `/s/<key>/<...>` → proxies to the game host for `key`.
+- `/<root_mount>/...` (e.g. `/bo1z/...`) → proxies through a fixed root.
+- Returned HTML is injected with `<script src="/__shim.js"></script>`.
+- If the game is in `iso`, `COOP: same-origin` and `COEP: require-corp` are added (for SharedArrayBuffer).
 
-البيانات (القوائم/الجذور) تُقرأ من `src/games.json`.
+Data (lists/roots) is read from `src/games.json`.
 
-## النشر
+## Deploy
 ```bash
 npm i -g wrangler
 export CLOUDFLARE_API_TOKEN=...        # Workers Scripts: Edit
 export CLOUDFLARE_ACCOUNT_ID=...
-wrangler deploy                        # ينتج https://<worker>.<subdomain>.workers.dev
+wrangler deploy                        # produces https://<worker>.<subdomain>.workers.dev
 ```
 
-## ربط الواجهة
-ضع رابط الـWorker في `arcade-site/config.js`:
+## Wiring the frontend
+Put the Worker URL in `arcade-site/config.js`:
 ```js
 window.ARCADE = { proxyBase: 'https://gateway.<subdomain>.workers.dev' };
 ```

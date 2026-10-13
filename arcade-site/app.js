@@ -37,13 +37,13 @@ function pushRecent(g){
     .concat(RECENT.filter(r => r.id !== gid(g))).slice(0, 8);
   store.set('recent', RECENT);
 }
-function playerName(){ return NAME || 'لاعب'; }
+function playerName(){ return NAME || 'Player'; }
 
 let GAMES = [], HOSTS = {}, filter = 'all', query = '';
 
 function card(g, i){
   const [c1,c2] = PALETTES[hash(g.key + g.name) % PALETTES.length];
-  const tags = (g.tags||[]).map(t => `<span class="tag ${t}">${ {mobile:'جوال',multi:'جماعية',heavy:'ثقيلة'}[t]||t }</span>`).join('');
+  const tags = (g.tags||[]).map(t => `<span class="tag ${t}">${ {mobile:'Mobile',multi:'Multiplayer',heavy:'Heavy'}[t]||t }</span>`).join('');
   const init = esc((g.name||'?').trim().charAt(0).toUpperCase());
   const on = FAV.includes(gid(g));
   return `<div class="card" style="animation-delay:${Math.min(i*22,520)}ms">
@@ -61,14 +61,14 @@ function card(g, i){
         <div class="host">${esc(g.key)}</div>
       </div>
     </a>
-    <button class="fav${on?' is-on':''}" data-id="${esc(gid(g))}" aria-label="إضافة للمفضلة" title="المفضلة">
+    <button class="fav${on?' is-on':''}" data-id="${esc(gid(g))}" aria-label="Add to favorites" title="Favorite">
       <svg viewBox="0 0 24 24"><path d="M12 17.3l-5.4 3.1 1.4-6.1L3 9.9l6.2-.5L12 3.7l2.8 5.7 6.2.5-4.9 4.4 1.4 6.1z"/></svg>
     </button>
     <div class="acts">
-      <button class="act chk" data-id="${esc(gid(g))}" aria-label="فحص توافق الجهاز" title="فحص توافق الجهاز">
+      <button class="act chk" data-id="${esc(gid(g))}" aria-label="Device compatibility check" title="Device compatibility check">
         <svg viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8L19 10h-7l1-8z"/></svg>
       </button>
-      <button class="act del" data-id="${esc(gid(g))}" aria-label="مسح بيانات اللعبة" title="مسح بيانات اللعبة">
+      <button class="act del" data-id="${esc(gid(g))}" aria-label="Clear game data" title="Clear game data">
         <svg viewBox="0 0 24 24"><path d="M6 7h12v1H6V7zm2-2h8v2H8V5zm-1 3h10l-1 14H7L7 8zm3 3v9h2v-9h-2zm4 0v9h2v-9h-2z"/></svg>
       </button>
     </div>
@@ -79,7 +79,7 @@ function renderRecent(){
   const box = document.getElementById('recent');
   if (!RECENT.length){ box.hidden = true; box.innerHTML = ''; return; }
   box.hidden = false;
-  box.innerHTML = `<div class="recent-h"><span>متابعة اللعب</span><span class="line"></span></div>
+  box.innerHTML = `<div class="recent-h"><span>Continue playing</span><span class="line"></span></div>
     <div class="recent-row">` + RECENT.map(r => {
       const g = { key:r.key, name:r.name, path:r.path, root:r.root };
       return `<a class="mini" href="${urlFor(g)}" target="_blank" rel="noopener">
@@ -102,17 +102,17 @@ function render(){
   if (!list.length){
     grid.innerHTML = '';
     status.className = 'status';
-    status.textContent = filter === 'fav' ? 'لا مفضّلات بعد — اضغط ☆ على أي لعبة.' : 'لا نتائج مطابقة.';
+    status.textContent = filter === 'fav' ? 'No favorites yet — tap ☆ on any game.' : 'No matching results.';
     return;
   }
   status.textContent = '';
   grid.innerHTML = list.map(card).join('');
-  document.getElementById('count').textContent = list.length + ' لعبة';
+  document.getElementById('count').textContent = list.length + (list.length === 1 ? ' game' : ' games');
 }
 
 function renderPlayer(){
   document.getElementById('pname').textContent = playerName();
-  document.getElementById('pav').textContent = playerName().trim().charAt(0).toUpperCase() || '؟';
+  document.getElementById('pav').textContent = playerName().trim().charAt(0).toUpperCase() || '?';
   document.getElementById('favcount').textContent = FAV.length ? '(' + FAV.length + ')' : '';
 }
 
@@ -153,7 +153,7 @@ document.getElementById('grid').addEventListener('click', e => {
 });
 
 document.getElementById('player').addEventListener('click', () => {
-  const v = prompt('اسم اللاعب:', NAME || '');
+  const v = prompt('Player name:', NAME || '');
   if (v === null) return;
   NAME = v.trim().slice(0, 24);
   store.set('name', NAME); renderPlayer();
@@ -175,7 +175,7 @@ fetch('/games.json').then(r => r.json()).then(d => {
 }).catch(() => {
   const s = document.getElementById('status');
   s.className = 'status err';
-  s.textContent = 'تعذّر تحميل قائمة الألعاب.';
+  s.textContent = 'Could not load the games list.';
 });
 
 /* ---- device profile & game rating ---- */
@@ -201,15 +201,15 @@ function gpuInfo(){
 }
 function deviceKind(hw){
   const touch = hw.touch > 0 || hw.coarse === true || hw.mobile === true;
-  if (touch) return (hw.cores > 8 && hw.memory >= 8) ? 'جهاز لوحي' : 'هاتف';
-  return 'حاسوب';
+  if (touch) return (hw.cores > 8 && hw.memory >= 8) ? 'Tablet' : 'Phone';
+  return 'Desktop';
 }
 function deviceScore(hw, gpu, tags){
   const kind = deviceKind(hw);
   let sc = 0;
   sc += Math.min(hw.cores || 0, 12) / 12 * 30;
   sc += Math.min(hw.memory || 0, 16) / 16 * 28;
-  sc += kind === 'حاسوب' ? 18 : (kind === 'جهاز لوحي' ? 13 : 8);
+  sc += kind === 'Desktop' ? 18 : (kind === 'Tablet' ? 13 : 8);
   if (hw.touch > 0) sc -= 4;
   sc += gpu.gl2 ? 11 : 6;
   if (gpu.renderer) sc += 3;
@@ -222,10 +222,10 @@ function deviceScore(hw, gpu, tags){
   return { raw: Math.max(0, Math.round(sc)), adj: Math.max(0, Math.round(adj)) };
 }
 function verdict(s){
-  if (s >= 75) return { c: 'g', t: 'سلسة' };
-  if (s >= 55) return { c: 'y', t: 'جيدة' };
-  if (s >= 35) return { c: 'o', t: 'متوسطة' };
-  return { c: 'r', t: 'ثقيلة' };
+  if (s >= 75) return { c: 'g', t: 'Smooth' };
+  if (s >= 55) return { c: 'y', t: 'Good' };
+  if (s >= 35) return { c: 'o', t: 'Medium' };
+  return { c: 'r', t: 'Heavy' };
 }
 function closeModal(){
   const o = document.getElementById('dev-overlay');
@@ -239,31 +239,31 @@ function openDevice(g){
   const sc = deviceScore(hw, gpu, g.tags || []);
   const v = verdict(sc.adj);
   const tips = [];
-  if (hw.memory && hw.memory <= 4) tips.push('الذاكرة قليلة — تجنّب الألعاب الثقيلة وأغلق التطبيقات في الخلفية.');
-  if (hw.cores && hw.cores <= 4) tips.push('المعالج محدود — شغّل وضع الأداء من السهم ⬆ داخل اللعبة، وجرّب «دقة الرسم مخفّضة».');
-  if (hw.touch > 0) tips.push('أنت على شاشة لمس — أغلق علامات التبويب الأخرى وقلّل التطبيقات في الخلفية.');
-  if ((g.tags || []).includes('heavy')) tips.push('هذه اللعبة مصنفة "ثقيلة" وقد لا تعمل بسلاسة على الجهاز.');
-  if (!tips.length) tips.push('يبدو جهازك مناسبًا. إن أردت تجربة أقرب، استخدم وضع الأداء من الشاشة العائمة داخل اللعبة.');
+  if (hw.memory && hw.memory <= 4) tips.push('Low memory — avoid heavy games and close background apps.');
+  if (hw.cores && hw.cores <= 4) tips.push('Limited CPU — turn on performance mode from the ⬆ arrow inside the game, and try "Reduced render resolution".');
+  if (hw.touch > 0) tips.push('You are on a touch screen — close other tabs and reduce background apps.');
+  if ((g.tags || []).includes('heavy')) tips.push('This game is tagged "heavy" and may not run smoothly on this device.');
+  if (!tips.length) tips.push('Your device looks suitable. For the best experience, use performance mode from the floating panel inside the game.');
   const rows = [
-    ['الذاكرة (RAM)', (hw.memory || '—') + ' GB'],
-    ['أنوية المعالج', hw.cores || '—'],
-    ['نوع الجهاز', kind],
-    ['المعالج الرسومي', gpu.renderer || 'غير مكشوف'],
-    ['دقة الشاشة (DPR)', (window.devicePixelRatio || 1).toFixed(2)],
-    ['WebGL2', gpu.gl2 ? 'مدعوم' : 'غير مدعوم']
+    ['Memory (RAM)', (hw.memory || '—') + ' GB'],
+    ['CPU cores', hw.cores || '—'],
+    ['Device type', kind],
+    ['GPU', gpu.renderer || 'Undisclosed'],
+    ['Pixel ratio (DPR)', (window.devicePixelRatio || 1).toFixed(2)],
+    ['WebGL2', gpu.gl2 ? 'Supported' : 'Not supported']
   ];
   const o = document.createElement('div');
   o.className = 'overlay'; o.id = 'dev-overlay';
   o.innerHTML = `<div class="modal" role="dialog" aria-modal="true">
-    <button class="m-close" aria-label="إغلاق">✕</button>
-    <div class="m-title">توافق جهازك مع «${esc(g.name)}»</div>
+    <button class="m-close" aria-label="Close">✕</button>
+    <div class="m-title">Your device vs "${esc(g.name)}"</div>
     <div class="score ${v.c}"><b>${sc.adj}<span>/100</span></b>
       <div class="bar"><i style="width:${Math.min(sc.adj, 100)}%"></i></div>
       <span class="verdict">${v.t}</span></div>
-    ${sc.adj !== sc.raw ? `<div class="m-note">نقاط الجهاز الخام ${sc.raw} ← معدّلة ${sc.adj} بعد وسوم اللعبة (${(g.tags||[]).join('، ') || 'بدون وسوم'}).</div>` : ''}
+    ${sc.adj !== sc.raw ? `<div class="m-note">Raw device score ${sc.raw} → adjusted ${sc.adj} after game tags (${(g.tags||[]).join(', ') || 'no tags'}).</div>` : ''}
     <div class="m-rows">${rows.map(r => `<div class="m-row"><span>${r[0]}</span><b>${esc(String(r[1]))}</b></div>`).join('')}</div>
     <div class="m-tips">${tips.map(t => `<div>• ${t}</div>`).join('')}</div>
-    <button class="m-ok">فهمت</button>
+    <button class="m-ok">Got it</button>
   </div>`;
   document.body.appendChild(o);
   const q = o.querySelector('.modal');
@@ -278,7 +278,7 @@ function openDevice(g){
       const row = q.querySelector('.m-rows');
       if (row && !o.dataset.b){
         o.dataset.b = '1';
-        row.insertAdjacentHTML('beforeend', `<div class="m-row"><span>البطارية</span><b>${Math.round((b.level||0)*100)}%${b.charging ? ' (شحن)' : ''}</b></div>`);
+        row.insertAdjacentHTML('beforeend', `<div class="m-row"><span>Battery</span><b>${Math.round((b.level||0)*100)}%${b.charging ? ' (charging)' : ''}</b></div>`);
       }
     }).catch(() => {});
   } catch(e){}
@@ -294,7 +294,7 @@ function toast(msg, kind){
   t._t = setTimeout(() => t.classList.remove('show'), 3400);
 }
 function clearGameData(g){
-  const sure = confirm(`مسح بيانات «${g.name}»؟\nسيُحذف كاش اللعبة وتخزينها المحلي (تقدم، ملفات مؤقتة) من البوابة.`);
+  const sure = confirm(`Clear data for "${g.name}"?\nThis deletes the game's cache and local storage (progress, temp files) from the gateway.`);
   if (!sure) return;
   const host = HOSTS[g.key] || '';
   const root = g.root ? '/' + String(g.path).replace(/^\/+|\/+$/g, '') : '';
@@ -313,15 +313,15 @@ function clearGameData(g){
     if (!ev.data || ev.data.type !== 'arcade:clear-result') return;
     const r = ev.data.result || {};
     fin(r.error === 'none'
-      ? `تم مسح بيانات «${g.name}» بنجاح ✓`
-      : `اكتمل المسح جزئيًا — كاش: ${r.caches || 0}، تخزين محلي: ${r.ls || 0}، OPFS: ${r.opfs || 0}.`,
+      ? `Cleared data for "${g.name}" successfully ✓`
+      : `Clear completed partially — cache: ${r.caches || 0}, local storage: ${r.ls || 0}, OPFS: ${r.opfs || 0}.`,
       r.error === 'none' ? '' : 'warn');
   }
   window.addEventListener('message', onMsg);
   const w = window.open(url, '_blank', 'opener,width=440,height=200');
   if (!w){
-    fin(`تعذّر فتح نافذة المسح — اسمح بالنوافذ المنبثقة لمسح بيانات «${g.name}».`, 'warn');
+    fin(`Could not open the clear window — allow pop-ups to clear data for "${g.name}".`, 'warn');
     return;
   }
-  setTimeout(() => fin(`انتهى مسح «${g.name}» (بدون تأكيد تام).`, 'warn'), 9000);
+  setTimeout(() => fin(`Finished clearing "${g.name}" (without full confirmation).`, 'warn'), 9000);
 }

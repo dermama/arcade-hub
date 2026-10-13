@@ -3,7 +3,7 @@
   --line:rgba(255,255,255,.09); --text:#e9ecf5; --muted:#8b93a7;
   --a:#7c5cff; --b:#22d3ee; --c:#ff6b9d;
   --r:18px; --shadow:0 18px 50px -20px rgba(0,0,0,.75);
-  --font:'Cairo',system-ui,'Segoe UI',Tahoma,sans-serif;
+  --font:'Inter',system-ui,'Segoe UI',Roboto,sans-serif;
   --mono:'Space Grotesk',ui-monospace,monospace;
 }
 *{box-sizing:border-box}
@@ -103,7 +103,7 @@ main{max-width:1240px;margin:0 auto;padding:26px clamp(16px,4vw,44px) 40px}
 .player:hover{border-color:rgba(255,255,255,.24);background:var(--panel-2)}
 .pav{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;flex:none;
   background:linear-gradient(135deg,var(--a),var(--b));color:#06070b;font-weight:800;font-size:14px}
-.pmeta{display:flex;flex-direction:column;line-height:1.15;text-align:right}
+.pmeta{display:flex;flex-direction:column;line-height:1.15;text-align:left}
 .pmeta>span{font-size:13.5px;font-weight:600;color:var(--text)}
 .pmeta small{font-size:10.5px;color:var(--muted);font-family:var(--mono)}
 .pmeta b{color:#ffd166}

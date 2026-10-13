@@ -113,7 +113,7 @@
     })();
 
     var CSS = "#unity-mobile-warning,#mobile-warning,.mobile-warning,#unity-warning{display:none!important}";
-    CSS += "#arcade-hud{position:fixed;z-index:2147483000;direction:rtl;font-family:system-ui,'Segoe UI',Tahoma,Arial,sans-serif;color:#eef1f8;pointer-events:none;bottom:14px;left:14px}";
+    CSS += "#arcade-hud{position:fixed;z-index:2147483000;direction:ltr;font-family:system-ui,'Segoe UI',Roboto,Arial,sans-serif;color:#eef1f8;pointer-events:none;bottom:14px;left:14px}";
     CSS += "#arcade-hud *{box-sizing:border-box}";
     CSS += "#ahud-tog{pointer-events:auto;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(9,12,20,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px -8px rgba(0,0,0,.6);transition:transform .15s}";
     CSS += "#ahud-tog:hover{transform:scale(1.07)}#ahud-tog svg{width:20px;height:20px;fill:#a78bfa}";
@@ -132,19 +132,19 @@
 
     var hud = document.createElement("div");
     hud.id = "arcade-hud";
-    hud.innerHTML = '<button id="ahud-tog" title="أداء الجهاز" aria-label="أداء الجهاز"><svg viewBox="0 0 24 24"><path d="M12 4L4 16h16z"/></svg></button>' +
+    hud.innerHTML = '<button id="ahud-tog" title="Device performance" aria-label="Device performance"><svg viewBox="0 0 24 24"><path d="M12 4L4 16h16z"/></svg></button>' +
       '<div id="ahud-panel" hidden>' +
-      '<div class="ahd-h">أداء الجهاز على اللعبة</div>' +
-      '<div class="ahd-row"><span>الإطارات (FPS)</span><b id="ahud-fps">—</b></div>' +
-      '<div class="ahd-row"><span>وقت الإطار</span><b id="ahud-ms">—</b></div>' +
-      '<div class="ahd-row"><span>الذاكرة (RAM)</span><b id="ahud-ram">—</b></div>' +
-      '<div class="ahd-row"><span>أنوية المعالج</span><b id="ahud-cores">—</b></div>' +
-      '<div class="ahd-row"><span>المعالج الرسومي</span><b id="ahud-gpu" style="text-align:right;direction:rtl;white-space:normal;line-height:1.4">—</b></div>' +
-      '<label class="ahd-sw"><span>وضع الأداء</span><input type="checkbox" id="ahud-perf"></label>' +
-      '<label class="ahd-sw"><span>دقة الرسم مخفّضة</span><input type="checkbox" id="ahud-res"></label>' +
-      '<div class="ahd-help">كيف تقرأها؟<br>• FPS = عدد الإطارات بالثانية، فوق 30 سلاسة مقبولة.<br>• RAM أقل من 4GB قد تُغلق المتصفح في الألعاب الثقيلة.<br>• الأنوية الأقل من 4 تعني تأدية أبطأ.<br>• GPU = المعالج الرسومي الذي يرسم اللعبة.</div>' +
+      '<div class="ahd-h">Device performance in-game</div>' +
+      '<div class="ahd-row"><span>Frames (FPS)</span><b id="ahud-fps">—</b></div>' +
+      '<div class="ahd-row"><span>Frame time</span><b id="ahud-ms">—</b></div>' +
+      '<div class="ahd-row"><span>Memory (RAM)</span><b id="ahud-ram">—</b></div>' +
+      '<div class="ahd-row"><span>CPU cores</span><b id="ahud-cores">—</b></div>' +
+      '<div class="ahd-row"><span>GPU</span><b id="ahud-gpu" style="text-align:left;direction:ltr;white-space:normal;line-height:1.4">—</b></div>' +
+      '<label class="ahd-sw"><span>Performance mode</span><input type="checkbox" id="ahud-perf"></label>' +
+      '<label class="ahd-sw"><span>Reduced render resolution</span><input type="checkbox" id="ahud-res"></label>' +
+      '<div class="ahd-help">How to read this?<br>• FPS = frames per second; above 30 feels smooth.<br>• RAM under 4GB may crash the browser on heavy games.<br>• Fewer than 4 cores means slower performance.<br>• GPU = the graphics processor that renders the game.</div>' +
       '<div class="ahd-note" id="ahud-note" hidden></div>' +
-      '<button class="ahd-close" id="ahud-close">إغلاق</button>' +
+      '<button class="ahd-close" id="ahud-close">Close</button>' +
       '</div>';
     try { document.documentElement.appendChild(hud); } catch (e) {}
 
@@ -164,7 +164,7 @@
       cPerf.checked = !!window.ARCADE.perf.on;
       cRes.checked = !!window.ARCADE.perf.resOn;
       if (RH.memory) pRam.textContent = RH.memory + " GB";
-      if (RH.cores) pCores.textContent = RH.cores + " أنوية";
+      if (RH.cores) pCores.textContent = RH.cores + (RH.cores === 1 ? " core" : " cores");
 
       function getGpu() {
         if (gpuStr) return gpuStr;
@@ -178,7 +178,7 @@
             c.width = c.height = 0;
           }
         } catch (e) {}
-        return gpuStr || "غير متاح";
+        return gpuStr || "N/A";
       }
 
       function paint(fps, ms) {
@@ -222,7 +222,7 @@
         try { localStorage.setItem("arcade.perf", cPerf.checked ? "1" : "0"); } catch (e) {}
         if (cPerf.checked) {
           try { Object.defineProperty(window, "devicePixelRatio", { get: function () { return window.ARCADE.perf.dpr; }, configurable: true }); } catch (e) {}
-          note("وضع الأداء يظهر بوضوح عند فتح اللعبة من البداية — قد لا تتغيّر دقة التشغيل الحالية فورًا.");
+          note("Performance mode takes full effect when the game is opened from the start — the current run resolution may not change immediately.");
         } else {
           try { delete window.devicePixelRatio; } catch (e) {}
           note("");
@@ -236,7 +236,7 @@
             if (cv.__arc) { var w = cv.__arc.w, h = cv.__arc.h; cv.width = w; cv.height = h; }
           });
         } catch (e2) {}
-        note(cRes.checked ? "خُفّضت دقة الرسم لتقليل الحمل على المعالج الرسومي." : "");
+        note(cRes.checked ? "Render resolution reduced to lower the GPU load." : "");
       });
     })();
   } catch (e) {}

@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#07080d">
-<title>أركيد — بوابة الألعاب</title>
-<meta name="description" content="شغّل ألعاب المتصفح مباشرة على هاتفك أو حاسوبك.">
+<title>Arcade — Games Gateway</title>
+<meta name="description" content="Play browser games directly on your phone or computer.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -18,51 +18,51 @@
 <header class="nav">
   <a class="brand" href="/">
     <span class="brand-mark">◈</span>
-    <span class="brand-text">أركيد<em>ARCADE</em></span>
+    <span class="brand-text">Arcade<em>GAMES</em></span>
   </a>
   <div class="nav-right">
     <div class="search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 104.47 10.03l4.25 4.25 1.41-1.41-4.25-4.25A6 6 0 0010 4zm0 2a4 4 0 110 8 4 4 0 010-8z"/></svg>
-      <input id="q" type="search" placeholder="ابحث عن لعبة…" autocomplete="off" aria-label="بحث">
+      <input id="q" type="search" placeholder="Search for a game…" autocomplete="off" aria-label="Search">
     </div>
-    <button class="ghost" id="share" title="انسخ رابطي الشخصي">
+    <button class="ghost" id="share" title="Copy my personal link">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 16.1a2.9 2.9 0 00-2 0l-6-6a2.9 2.9 0 000-2l6-6a3 3 0 10-1.2-1.2l-6 6a3 3 0 100 4.2l6 6a3 3 0 103.2-1z" transform="translate(0 2) scale(.86)"/></svg>
-      <span>رابطي</span>
+      <span>My link</span>
     </button>
-    <button class="player" id="player" title="ملف اللاعب — اضغط لتغيير الاسم">
-      <span class="pav" id="pav">؟</span>
-      <span class="pmeta"><span id="pname">لاعب</span><small>مفضّلة <b id="favcount"></b></small></span>
+    <button class="player" id="player" title="Player profile — click to change your name">
+      <span class="pav" id="pav">?</span>
+      <span class="pmeta"><span id="pname">Player</span><small>Favorites <b id="favcount"></b></small></span>
     </button>
   </div>
 </header>
 
 <section class="hero">
-  <p class="eyebrow">شغّلها من المتصفح — جوال أو حاسوب</p>
-  <h1>العبي <span class="grad">بلا حدود</span></h1>
-  <p class="sub">مجموعة ألعاب مختارة تعمل مباشرة من المتصفح، مع تجاوز شفّاف لفحوصات الأجهزة كي تعمل على هاتفك.</p>
+  <p class="eyebrow">Play from the browser — phone or computer</p>
+  <h1>Play <span class="grad">without limits</span></h1>
+  <p class="sub">A hand-picked collection of games that run straight from the browser, with a transparent bypass of device checks so they work on your phone.</p>
   <div class="filters" id="filters" role="tablist">
-    <button class="chip is-on" data-f="all">الكل</button>
-    <button class="chip" data-f="mobile">تعمل على الجوال</button>
-    <button class="chip" data-f="multi">جماعية</button>
-    <button class="chip" data-f="heavy">ثقيلة</button>
-    <button class="chip" data-f="fav">★ المفضّلة</button>
+    <button class="chip is-on" data-f="all">All</button>
+    <button class="chip" data-f="mobile">Runs on phone</button>
+    <button class="chip" data-f="multi">Multiplayer</button>
+    <button class="chip" data-f="heavy">Heavy</button>
+    <button class="chip" data-f="fav">★ Favorites</button>
   </div>
 </section>
 
 <main>
-  <div class="status" id="status">جارٍ التحميل…</div>
+  <div class="status" id="status">Loading…</div>
   <section class="recent" id="recent" hidden></section>
   <section class="grid" id="grid" aria-live="polite"></section>
 </main>
 
 <footer class="foot">
-  <span>أركيد · بوابة تشغيل ألعاب المتصفح</span>
+  <span>Arcade · Browser games gateway</span>
   <span class="dot"></span>
-  <span id="count">0 لعبة</span>
+  <span id="count">0 games</span>
 </footer>
 
-<script src="/__shim.js?v=2"></script>
-<script src="/config.js?v=2"></script>
-<script src="/app.js?v=2"></script>
+<script src="/__shim.js?v=3"></script>
+<script src="/config.js?v=3"></script>
+<script src="/app.js?v=3"></script>
 </body>
 </html>

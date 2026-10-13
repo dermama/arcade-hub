@@ -1,39 +1,39 @@
 # arcade-hub
 
-بوابة ألعاب متصفح مستقلة — **مجانية بالكامل، بلا أي نطاق مخصّص**.
-- **الواجهة** (`arcade-site/`) تُنشر على **Vercel** عبر استيراد هذا المستودع (Root Directory = `arcade-site`).
-- **البروكسي** (`cloudflare-worker/`) يُنشر على **Cloudflare Workers** (`*.workers.dev`).
+A standalone browser games gateway — **completely free, no custom domain required**.
+- The **frontend** (`arcade-site/`) is deployed to **Vercel** by importing this repository (Root Directory = `arcade-site`).
+- The **proxy** (`cloudflare-worker/`) is deployed to **Cloudflare Workers** (`*.workers.dev`).
 
-## البنية
+## Structure
 ```
-arcade-site/          # موقع Vercel الثابت
+arcade-site/          # static Vercel site
   index.html
   styles.css
-  app.js              # تجربة اللاعب: هوية، مفضّلة، متابعة، رابط شخصي ?p=PID
-  config.js           # يحدّد proxyBase = رابط الـWorker
+  app.js              # player experience: identity, favorites, continue, personal link ?p=PID
+  config.js           # sets proxyBase = the Worker URL
   games.json
   __shim.js  __capabilities.js
   vercel.json
-cloudflare-worker/    # Worker البروكسي
+cloudflare-worker/    # proxy Worker
   src/worker.js  src/shim.txt  src/capabilities.txt  src/games.json
   wrangler.toml
 ```
 
-## النشر
-1. **Cloudflare Worker** (مجاني):
+## Deploy
+1. **Cloudflare Worker** (free):
    ```bash
    cd cloudflare-worker
    npm i -g wrangler
-   export CLOUDFLARE_API_TOKEN=...   # صلاحية Workers Scripts: Edit
+   export CLOUDFLARE_API_TOKEN=...   # Workers Scripts: Edit permission
    export CLOUDFLARE_ACCOUNT_ID=...
    wrangler deploy
    ```
-2. **اربط الواجهة**: ضع رابط الـWorker في `arcade-site/config.js` (`proxyBase`).
-3. **Vercel** (مجاني): New Project → import this repo → **Root Directory = `arcade-site`** → Deploy.
+2. **Wire the frontend**: put the Worker URL in `arcade-site/config.js` (`proxyBase`).
+3. **Vercel** (free): New Project → import this repo → **Root Directory = `arcade-site`** → Deploy.
 
-## ملاحظات
-- لا يعتمد على أي نطاق مخصّص (كل شيء على `vercel.app` + `workers.dev`).
-- الحدود المجانية: Workers ~100k طلب/يوم، Vercel Hobby — بلا مصاريف.
+## Notes
+- No custom domain required (everything runs on `vercel.app` + `workers.dev`).
+- Free tiers: Workers ~100k requests/day, Vercel Hobby — no cost.
 
-## تنبيه قانوني
-بعض الألعاب المُفهرسة محمية بحقوق نشر. تحقّق من الحقوق قبل أي نشر عام.
+## Legal notice
+Some indexed games are protected by copyright. Verify rights before any public deployment.
