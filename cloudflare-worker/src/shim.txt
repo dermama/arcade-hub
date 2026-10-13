@@ -128,6 +128,9 @@
     CSS += ".ahd-help{margin:6px 12px 10px;padding:8px 9px;border:1px dashed rgba(255,255,255,.14);border-radius:10px;font-size:10.5px;line-height:1.75;color:#9aa3b8}";
     CSS += ".ahd-note{margin:0 12px 10px;font-size:10.5px;color:#7ee7c0;line-height:1.6}";
     CSS += ".ahd-close{width:100%;border:0;border-top:1px solid rgba(255,255,255,.08);background:transparent;color:#8b93a7;padding:8px;font-size:11.5px;cursor:pointer}";
+    CSS += "#ahud-fs{position:fixed;z-index:2147483000;right:14px;bottom:14px;pointer-events:auto;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(9,12,20,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px -8px rgba(0,0,0,.6);transition:transform .15s;padding:0}";
+    CSS += "#ahud-fs:hover{transform:scale(1.07)}#ahud-fs svg{width:20px;height:20px;fill:none;stroke:#a78bfa;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}";
+    CSS += "canvas:fullscreen{object-fit:contain;background:#000}:fullscreen{background:#000}";
     try { var s = document.createElement("style"); s.textContent = CSS; (document.head || document.documentElement).appendChild(s); } catch (e) {}
 
     var hud = document.createElement("div");
@@ -238,6 +241,70 @@
         } catch (e2) {}
         note(cRes.checked ? "Render resolution reduced to lower the GPU load." : "");
       });
+    })();
+
+    (function () {
+      try {
+        var root = document.documentElement;
+        if (!(root.requestFullscreen || root.webkitRequestFullscreen)) return;
+        var btn = document.createElement("button");
+        btn.id = "ahud-fs";
+        btn.type = "button";
+        btn.title = "Fullscreen";
+        btn.setAttribute("aria-label", "Toggle fullscreen");
+        btn.setAttribute("aria-pressed", "false");
+        root.appendChild(btn);
+
+        var ICO_IN = '<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+        var ICO_OUT = '<svg viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>';
+
+        function fsEl() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+        function paint() {
+          var on = !!fsEl();
+          btn.innerHTML = on ? ICO_OUT : ICO_IN;
+          btn.title = on ? "Exit fullscreen" : "Fullscreen";
+          btn.setAttribute("aria-pressed", on ? "true" : "false");
+        }
+        function pickTarget() {
+          var best = null, area = 0;
+          var cs = document.querySelectorAll("canvas");
+          for (var i = 0; i < cs.length; i++) {
+            var r = cs[i].getBoundingClientRect();
+            if (r.width < 2 || r.height < 2) continue;
+            var a = r.width * r.height;
+            if (a > area) { area = a; best = cs[i]; }
+          }
+          if (best) return best;
+          var ids = ["app", "screen", "game", "game-container", "unity-canvas"];
+          for (var j = 0; j < ids.length; j++) {
+            var e = document.getElementById(ids[j]);
+            if (e && e.getClientRects().length) return e;
+          }
+          return document.documentElement;
+        }
+        function enter() {
+          var t = pickTarget();
+          var rf = t.requestFullscreen || t.webkitRequestFullscreen;
+          try { if (rf) { var p = rf.call(t); if (p && p.catch) p.catch(function () { try { root.requestFullscreen(); } catch (e) {} }); } }
+          catch (e) { try { root.requestFullscreen(); } catch (e2) {} }
+          setTimeout(paint, 350);
+        }
+        btn.addEventListener("click", function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          if (fsEl()) {
+            var ex = document.exitFullscreen || document.webkitExitFullscreen;
+            try { if (ex) ex.call(document); } catch (e) {}
+            setTimeout(paint, 350);
+            return;
+          }
+          enter();
+        });
+        ["fullscreenchange", "webkitfullscreenchange"].forEach(function (e) {
+          document.addEventListener(e, paint, false);
+        });
+        paint();
+      } catch (e) {}
     })();
   } catch (e) {}
 })();
