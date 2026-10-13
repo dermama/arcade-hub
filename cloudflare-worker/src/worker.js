@@ -25,11 +25,40 @@ function isoHeaders(key) {
   return h;
 }
 
+function escRe(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function rewriteRoot(html, mount) {
+  const p = mount + "/";
+  const skip = escRe(mount.slice(1)) + "/";
+  const attr = new RegExp('\\b(href|src|action|poster|formaction)\\s*=\\s*(["\'])\\/(?!\\/|' + skip + ')', "gi");
+  html = html.replace(attr, (m, a, q) => a + "=" + q + p);
+  html = html.replace(/\b(srcset|imagesrcset)\s*=\s*(["'])([^"']*)\2/gi, (m, a, q, v) => {
+    return a + "=" + q + v.replace(/(^|,)(\s*)\/(?!\/)/g, (mm, sep, sp) => sep + sp + p) + q;
+  });
+  html = html.replace(/url\(\s*(['"]?)\/(?!\/)/gi, (m, q) => "url(" + q + p);
+  html = html.replace(/(@import\s+)(['"])\/(?!\/)/gi, (m, a, q) => a + q + p);
+  return html;
+}
+
+function rewriteCss(css, mount) {
+  const p = mount + "/";
+  css = css.replace(/url\(\s*(['"]?)\/(?!\/)/gi, (m, q) => "url(" + q + p);
+  css = css.replace(/(@import\s+)(['"])\/(?!\/)/gi, (m, a, q) => a + q + p);
+  return css;
+}
+
 function inject(html) {
-  if (/<head[^>]*>/i.test(html)) {
-    return html.replace(/<head[^>]*>/i, (m) => m + SHIM_TAG);
+  let pre = "";
+  if (!/<meta[^>]+name=["']?viewport/i.test(html)) {
+    pre += '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">';
   }
-  return SHIM_TAG + html;
+  pre += SHIM_TAG;
+  if (/<head[^>]*>/i.test(html)) {
+    return html.replace(/<head[^>]*>/i, (m) => m + pre);
+  }
+  return pre + html;
 }
 
 const STOP = new Set(["index", "files", "assets", "static", "public", "build", "css", "js", "data", "img", "images", "game", "games", "play", "web", "dist", "media", "content", "www", "com", "net", "org", "io", "app", "config", "scripts", "json"]);
@@ -105,24 +134,26 @@ export default {
       });
     }
 
-    let key = null, tail = null;
+    let key = null, tail = null, mount = null;
 
     for (const prefix of Object.keys(ROOT)) {
       if (path === prefix || path.startsWith(prefix + "/")) {
         key = ROOT[prefix];
         tail = path.slice(1);
+        mount = prefix;
         break;
       }
     }
 
     if (key === null) {
-      let rest = null;
-      if (path.startsWith("/play/")) rest = path.slice(6);
-      else if (path.startsWith("/s/")) rest = path.slice(3);
+      let rest = null, mp = null;
+      if (path.startsWith("/play/")) { rest = path.slice(6); mp = "/play/"; }
+      else if (path.startsWith("/s/")) { rest = path.slice(3); mp = "/s/"; }
       if (rest !== null) {
         const i = rest.indexOf("/");
         key = i < 0 ? rest : rest.slice(0, i);
         tail = i < 0 ? "" : rest.slice(i + 1);
+        mount = mp + key;
       }
     }
 
@@ -175,9 +206,18 @@ export default {
       out.set("Cross-Origin-Embedder-Policy", "require-corp");
     }
 
-    if (ctype.toLowerCase().includes("text/html")) {
-      const html = await up.text();
+    const lc = ctype.toLowerCase();
+    const absBase = mount && (mount.startsWith("/play/") || mount.startsWith("/s/")) ? mount : null;
+
+    if (lc.includes("text/html")) {
+      let html = await up.text();
+      if (absBase) html = rewriteRoot(html, absBase);
       return new Response(inject(html), { status: up.status, headers: out });
+    }
+
+    if (absBase && (lc.includes("text/css") || lc.includes("css"))) {
+      const css = await up.text();
+      return new Response(rewriteCss(css, absBase), { status: up.status, headers: out });
     }
 
     return new Response(up.body, { status: up.status, headers: out });
