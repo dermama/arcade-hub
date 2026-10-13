@@ -74,7 +74,7 @@ main{max-width:1240px;margin:0 auto;padding:26px clamp(16px,4vw,44px) 40px}
   opacity:0;transform:scale(.85);transition:.28s}
 .card:hover .play{opacity:1;transform:scale(1)}
 .play svg{width:20px;height:20px;fill:#fff;transform:translateX(-1px)}
-.meta{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px 15px}
+.meta{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px 6px}
 .title{font-weight:600;font-size:15.5px;line-height:1.3}
 .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
 .tag{font-size:10.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2.5px 8px}
@@ -133,3 +133,54 @@ main{max-width:1240px;margin:0 auto;padding:26px clamp(16px,4vw,44px) 40px}
   .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
   .thumb .init{font-size:34px}
 }
+
+/* Card action buttons */
+.acts{display:flex;gap:8px;padding:0 14px 13px}
+.act{width:32px;height:32px;display:grid;place-items:center;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel);color:var(--muted);cursor:pointer;transition:.22s}
+.act:hover{color:var(--text);border-color:rgba(255,255,255,.28);transform:translateY(-1px)}
+.act svg{width:15px;height:15px;fill:currentColor}
+.act.chk:hover{color:#7ee7c0;border-color:rgba(126,231,192,.4)}
+.act.del:hover{color:#ff6b9d;border-color:rgba(255,107,157,.4)}
+
+/* Device modal */
+.overlay{position:fixed;inset:0;z-index:1000;background:rgba(5,6,10,.74);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  display:grid;place-items:center;padding:20px;animation:fade .25s ease}
+@keyframes fade{from{opacity:0}}
+.modal{width:min(430px,100%);max-height:86dvh;overflow:auto;position:relative;
+  background:rgba(13,16,26,.97);border:1px solid rgba(255,255,255,.12);border-radius:18px;
+  padding:22px;box-shadow:var(--shadow);animation:pop .28s cubic-bezier(.2,.9,.2,1);
+  scrollbar-width:thin}
+@keyframes pop{from{transform:translateY(14px) scale(.98);opacity:0}}
+.m-close{position:absolute;top:12px;left:12px;width:32px;height:32px;display:grid;place-items:center;
+  border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--muted);
+  cursor:pointer;font-size:14px;transition:.2s}
+.m-close:hover{color:var(--text);border-color:rgba(255,255,255,.3)}
+.m-title{font-size:17px;font-weight:800;margin:0 0 16px;padding-left:36px;line-height:1.5}
+.score b{font-family:var(--mono);font-weight:700;font-size:30px;display:flex;align-items:baseline;gap:3px}
+.score b span{font-size:13px;color:var(--muted);font-weight:600}
+.score.g b{color:#7ee7c0}.score.y b{color:#fde047}.score.o b{color:#ffb27a}.score.r b{color:#f87171}
+.bar{height:10px;background:var(--panel-2);border-radius:999px;overflow:hidden;margin:10px 0 8px}
+.bar i{display:block;height:100%;min-width:4px;border-radius:999px;
+  background:linear-gradient(90deg,var(--a),var(--b));transition:width .6s cubic-bezier(.2,.7,.2,1)}
+.verdict{font-size:13px;font-weight:700}
+.score.g .verdict{color:#7ee7c0}.score.y .verdict{color:#fde047}.score.o .verdict{color:#ffb27a}.score.r .verdict{color:#f87171}
+.m-note{font-size:12px;color:var(--muted);line-height:1.8;margin:0 0 14px}
+.m-rows{display:grid;gap:7px;margin:0 0 14px}
+.m-row{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted)}
+.m-row b{color:var(--text);font-weight:600;text-align:left;direction:ltr;font-variant-numeric:tabular-nums;white-space:normal}
+.m-tips{border:1px dashed rgba(255,255,255,.14);border-radius:12px;padding:10px 12px;
+  font-size:12.5px;line-height:2.05;color:var(--muted)}
+.m-ok{width:100%;margin-top:16px;border:0;border-radius:12px;padding:11px;font-family:var(--font);
+  font-weight:800;font-size:14px;color:#06070b;background:linear-gradient(135deg,var(--a),var(--b));
+  cursor:pointer;transition:.22s}
+.m-ok:hover{transform:translateY(-1px);box-shadow:0 10px 26px -10px var(--a)}
+
+/* Toast */
+.toast{position:fixed;bottom:18px;right:18px;z-index:1100;max-width:min(90vw,360px);
+  background:rgba(13,16,26,.97);border:1px solid rgba(255,255,255,.14);border-left:3px solid #7ee7c0;
+  color:var(--text);font-size:13px;line-height:1.7;border-radius:12px;padding:12px 14px;
+  box-shadow:var(--shadow);opacity:0;transform:translateY(8px);transition:.3s;pointer-events:none}
+.toast.show{opacity:1;transform:none}
+.toast.warn{border-left-color:#ffb27a}
