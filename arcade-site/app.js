@@ -302,27 +302,26 @@ function clearGameData(g){
     + '&host=' + encodeURIComponent(host)
     + '&path=' + encodeURIComponent(g.path)
     + '&root=' + encodeURIComponent(root);
-  const f = document.createElement('iframe');
-  f.style.display = 'none';
-  f.src = url;
   let done = false;
   function fin(msg, kind){
     if (done) return;
     done = true;
-    try { document.body.removeChild(f); } catch(e){}
+    window.removeEventListener('message', onMsg);
     toast(msg, kind);
   }
-  window.addEventListener('message', function h(ev){
-    if (ev.data && ev.data.type === 'arcade:clear-result'){
-      window.removeEventListener('message', h);
-      const r = ev.data.result || {};
-      fin(r.error === 'none'
-        ? `تم مسح بيانات «${g.name}» بنجاح ✓`
-        : `اكتمل المسح جزئيًا — كاش: ${r.caches || 0}، تخزين محلي: ${r.ls || 0}، OPFS: ${r.opfs || 0}.`,
-        r.error === 'none' ? '' : 'warn');
-    }
-  });
-  f.addEventListener('load', () => setTimeout(() => fin(`انتهى مسح «${g.name}» (بدون تأكيد تام).`, 'warn'), 2000));
-  setTimeout(() => fin(`انتهى مسح «${g.name}» بدون تأكيد من البوابة.`, 'warn'), 9000);
-  document.body.appendChild(f);
+  function onMsg(ev){
+    if (!ev.data || ev.data.type !== 'arcade:clear-result') return;
+    const r = ev.data.result || {};
+    fin(r.error === 'none'
+      ? `تم مسح بيانات «${g.name}» بنجاح ✓`
+      : `اكتمل المسح جزئيًا — كاش: ${r.caches || 0}، تخزين محلي: ${r.ls || 0}، OPFS: ${r.opfs || 0}.`,
+      r.error === 'none' ? '' : 'warn');
+  }
+  window.addEventListener('message', onMsg);
+  const w = window.open(url, '_blank', 'opener,width=440,height=200');
+  if (!w){
+    fin(`تعذّر فتح نافذة المسح — اسمح بالنوافذ المنبثقة لمسح بيانات «${g.name}».`, 'warn');
+    return;
+  }
+  setTimeout(() => fin(`انتهى مسح «${g.name}» (بدون تأكيد تام).`, 'warn'), 9000);
 }
