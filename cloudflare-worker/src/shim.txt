@@ -16,16 +16,17 @@
     }
 
     var LOW = RH.touch > 0 || (RH.cores > 0 && RH.cores <= 4) || (RH.memory > 0 && RH.memory <= 4);
+    var V_LOW = (RH.cores > 0 && RH.cores <= 2) || (RH.memory > 0 && RH.memory <= 2);
     var perfOn, resOn;
     try {
       var lp = localStorage.getItem("arcade.perf");
       var lr = localStorage.getItem("arcade.res");
       perfOn = lp === null ? LOW : lp === "1";
-      resOn = lr === "1";
-    } catch (e) { perfOn = LOW; resOn = false; }
+      resOn = lr === null ? LOW : lr === "1";
+    } catch (e) { perfOn = LOW; resOn = LOW; }
 
     window.ARCADE = window.ARCADE || {};
-    window.ARCADE.perf = { dpr: 0.75, res: 0.66, on: !!perfOn, resOn: !!resOn, real: RH };
+    window.ARCADE.perf = { dpr: V_LOW ? 0.5 : 0.75, res: V_LOW ? 0.5 : 0.66, on: !!perfOn, resOn: !!resOn, low: !!LOW, vlow: !!V_LOW, real: RH };
 
     var DESKTOP = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
     var d = function (o, k, v) { try { Object.defineProperty(o, k, { get: function () { return v; }, configurable: true }); } catch (e) {} };
@@ -59,7 +60,10 @@
           try {
             if (typeof t === "string" && /(webgl2|webgl)/i.test(t)) {
               a = a || {};
-              if (a.powerPreference == null) a.powerPreference = "low-power";
+              if (window.ARCADE.perf.on) {
+                if (a.powerPreference == null) a.powerPreference = "low-power";
+                if (a.antialias == null) a.antialias = false;
+              }
               return g.call(this, t, a);
             }
           } catch (e) {}
