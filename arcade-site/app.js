@@ -181,7 +181,7 @@ fetch('/games.json').then(r => r.json()).then(d => {
 /* ---- device profile & game rating ---- */
 function realHW(){
   const w = window.__realHardware;
-  if (w && (w.cores || w.memory || w.touch)) return w;
+  if (w && w.shimmed === true) return w;
   return { cores: navigator.hardwareConcurrency||0, memory: navigator.deviceMemory||0, touch: navigator.maxTouchPoints||0, platform: navigator.platform||'', ua: navigator.userAgent||'' };
 }
 function gpuInfo(){
@@ -200,8 +200,8 @@ function gpuInfo(){
   return { gl2, renderer };
 }
 function deviceKind(hw){
-  const touch = hw.touch > 0;
-  if (touch) return (hw.cores > 8 || hw.memory >= 8) ? 'جهاز لوحي' : 'هاتف';
+  const touch = hw.touch > 0 || hw.coarse === true || hw.mobile === true;
+  if (touch) return (hw.cores > 8 && hw.memory >= 8) ? 'جهاز لوحي' : 'هاتف';
   return 'حاسوب';
 }
 function deviceScore(hw, gpu, tags){

@@ -1,14 +1,19 @@
 (function () {
   try {
-    var RH = { cores: 0, memory: 0, touch: 0, platform: "", ua: "" };
-    try {
-      RH.cores = navigator.hardwareConcurrency || 0;
-      RH.memory = navigator.deviceMemory || 0;
-      RH.touch = navigator.maxTouchPoints || 0;
-      RH.platform = navigator.platform || "";
-      RH.ua = navigator.userAgent || "";
-    } catch (e) {}
-    window.__realHardware = RH;
+    var RH = window.__realHardware;
+    if (!RH || !RH.shimmed) {
+      RH = { cores: 0, memory: 0, touch: 0, platform: "", ua: "", coarse: false, mobile: false, shimmed: true };
+      try {
+        RH.cores = navigator.hardwareConcurrency || 0;
+        RH.memory = navigator.deviceMemory || 0;
+        RH.touch = navigator.maxTouchPoints || 0;
+        RH.platform = navigator.platform || "";
+        RH.ua = navigator.userAgent || "";
+        try { RH.coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches); } catch (e) {}
+        RH.mobile = /Mobi|Android|iPhone|iPad|Tablet/i.test(RH.ua + " " + RH.platform);
+      } catch (e) {}
+      window.__realHardware = RH;
+    }
     var DESKTOP = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
     var d = function (o, k, v) { try { Object.defineProperty(o, k, { get: function () { return v; }, configurable: true }); } catch (e) {} };
     d(navigator, "userAgent", DESKTOP);
