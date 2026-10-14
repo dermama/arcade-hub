@@ -28,15 +28,17 @@
     window.ARCADE = window.ARCADE || {};
     window.ARCADE.perf = { dpr: V_LOW ? 0.5 : 0.75, res: V_LOW ? 0.5 : 0.66, on: !!perfOn, resOn: !!resOn, low: !!LOW, vlow: !!V_LOW, real: RH };
 
-    var DESKTOP = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
-    var d = function (o, k, v) { try { Object.defineProperty(o, k, { get: function () { return v; }, configurable: true }); } catch (e) {} };
-    d(navigator, "userAgent", DESKTOP);
-    d(navigator, "appVersion", DESKTOP.replace("Mozilla/", ""));
-    d(navigator, "platform", "Win32");
-    d(navigator, "vendor", "Google Inc.");
-    d(navigator, "maxTouchPoints", 0);
-    d(navigator, "hardwareConcurrency", 12);
-    d(navigator, "deviceMemory", 16);
+    if (!RH.mobile) {
+      var DESKTOP = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
+      var d = function (o, k, v) { try { Object.defineProperty(o, k, { get: function () { return v; }, configurable: true }); } catch (e) {} };
+      d(navigator, "userAgent", DESKTOP);
+      d(navigator, "appVersion", DESKTOP.replace("Mozilla/", ""));
+      d(navigator, "platform", "Win32");
+      d(navigator, "vendor", "Google Inc.");
+      d(navigator, "maxTouchPoints", 0);
+      d(navigator, "hardwareConcurrency", 12);
+      d(navigator, "deviceMemory", 16);
+    }
 
     var FLOOR = { 0x8DFB: 8192, 0x8DFD: 8192, 0x0D33: 16384, 0x8073: 4096, 0x8872: 32, 0x8869: 16, 0x8B4A: 32 };
     function patch(proto) {
@@ -267,7 +269,7 @@
           btn.title = on ? "Exit fullscreen" : "Fullscreen";
           btn.setAttribute("aria-pressed", on ? "true" : "false");
         }
-        function pickTarget() {
+        function pickTarget(forAuto) {
           function isAd(el) {
             var s = (el.getAttribute && (el.getAttribute("src") || "")) + " " + (el.id || "") + " " + (el.name || "") + " " + (el.title || "") + " " + (el.className || "");
             if (/aswift|adsbygoogle|google_ads|googlesyndication|doubleclick|adservice|adsystem|amazon-ads|taboola|outbrain|criteo|pubmatic|rubicon|openx|smartadserver|yieldmo|adform|advert|sponsor/i.test(s)) return true;
@@ -285,10 +287,11 @@
             }
             return b;
           }
-          var c = biggest("canvas", false);
+          var c = biggest("canvas", true);
           if (c) return c;
           var f = biggest("iframe,embed,object", true);
           if (f) return f;
+          if (forAuto) return null;
           var ids = ["app", "screen", "game", "game-container", "unity-canvas", "gamecanvas", "gameCanvas"];
           for (var j = 0; j < ids.length; j++) {
             var e = document.getElementById(ids[j]);
@@ -327,10 +330,22 @@
         function killHint() { clearTimeout(hintTimer); hint.style.opacity = "0"; }
 
         var autoDone = false;
+        function onSurface(tg) {
+          var tag = (tg.tagName || "").toUpperCase();
+          if ((tg.closest && tg.closest("canvas")) || tag === "CANVAS" || tag === "IFRAME" || tag === "EMBED" || tag === "OBJECT" || tag === "VIDEO") return true;
+          var t = pickTarget(true);
+          if (!t) return false;
+          if (t === tg || t.contains(tg) || (tg.contains && tg.contains(t))) return true;
+          var c = t.parentElement;
+          if (c && c !== document.body && c !== document.documentElement && c.contains && c.contains(tg)) return true;
+          return false;
+        }
         function autoFS(ev) {
           if (autoDone) return;
           var tg = ev && ev.target;
-          if (tg && tg.closest && tg.closest("#arcade-hud,#ahud-fs")) return;
+          if (!tg) return;
+          if (tg.closest && tg.closest("#arcade-hud,#ahud-fs,#ahud-hint")) return;
+          if (!onSurface(tg)) return;
           autoDone = true;
           killHint();
           if (fsEl()) return;
