@@ -131,6 +131,8 @@
     CSS += "#ahud-fs{position:fixed;z-index:2147483000;right:14px;bottom:14px;pointer-events:auto;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(9,12,20,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px -8px rgba(0,0,0,.6);transition:transform .15s;padding:0}";
     CSS += "#ahud-fs:hover{transform:scale(1.07)}#ahud-fs svg{width:20px;height:20px;fill:none;stroke:#a78bfa;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}";
     CSS += "canvas:fullscreen{object-fit:contain;background:#000}:fullscreen{background:#000}";
+    CSS += "#ahud-hint{position:fixed;z-index:2147483000;left:50%;top:14px;transform:translateX(-50%);pointer-events:none;background:rgba(9,12,20,.9);color:#cbd5e1;border:1px solid rgba(255,255,255,.14);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);padding:7px 13px;border-radius:999px;font:600 12px system-ui,-apple-system,sans-serif;box-shadow:0 10px 30px -10px rgba(0,0,0,.7);transition:opacity .45s ease;max-width:calc(100vw - 24px);text-align:center}";
+    CSS += "#ahud-hint[hidden]{display:none}";
     try { var s = document.createElement("style"); s.textContent = CSS; (document.head || document.documentElement).appendChild(s); } catch (e) {}
 
     var hud = document.createElement("div");
@@ -266,16 +268,28 @@
           btn.setAttribute("aria-pressed", on ? "true" : "false");
         }
         function pickTarget() {
-          var best = null, area = 0;
-          var cs = document.querySelectorAll("canvas");
-          for (var i = 0; i < cs.length; i++) {
-            var r = cs[i].getBoundingClientRect();
-            if (r.width < 2 || r.height < 2) continue;
-            var a = r.width * r.height;
-            if (a > area) { area = a; best = cs[i]; }
+          function isAd(el) {
+            var s = (el.getAttribute && (el.getAttribute("src") || "")) + " " + (el.id || "") + " " + (el.name || "") + " " + (el.title || "") + " " + (el.className || "");
+            if (/aswift|adsbygoogle|google_ads|googlesyndication|doubleclick|adservice|adsystem|amazon-ads|taboola|outbrain|criteo|pubmatic|rubicon|openx|smartadserver|yieldmo|adform|advert|sponsor/i.test(s)) return true;
+            return /(^|[^a-z0-9])ads?([^a-z0-9]|$)/i.test(s);
           }
-          if (best) return best;
-          var ids = ["app", "screen", "game", "game-container", "unity-canvas"];
+          function biggest(sel, skipAds) {
+            var b = null, ar = 0, ns = document.querySelectorAll(sel);
+            for (var i = 0; i < ns.length; i++) {
+              var el = ns[i];
+              var r = el.getBoundingClientRect();
+              if (r.width < 2 || r.height < 2) continue;
+              if (skipAds && isAd(el)) continue;
+              var a = r.width * r.height;
+              if (a > ar) { ar = a; b = el; }
+            }
+            return b;
+          }
+          var c = biggest("canvas", false);
+          if (c) return c;
+          var f = biggest("iframe,embed,object", true);
+          if (f) return f;
+          var ids = ["app", "screen", "game", "game-container", "unity-canvas", "gamecanvas", "gameCanvas"];
           for (var j = 0; j < ids.length; j++) {
             var e = document.getElementById(ids[j]);
             if (e && e.getClientRects().length) return e;
@@ -304,6 +318,27 @@
           document.addEventListener(e, paint, false);
         });
         paint();
+
+        var hint = document.createElement("div");
+        hint.id = "ahud-hint";
+        hint.textContent = "Tap the game once to play fullscreen";
+        root.appendChild(hint);
+        var hintTimer = setTimeout(function () { hint.style.opacity = "0"; }, 5000);
+        function killHint() { clearTimeout(hintTimer); hint.style.opacity = "0"; }
+
+        var autoDone = false;
+        function autoFS(ev) {
+          if (autoDone) return;
+          var tg = ev && ev.target;
+          if (tg && tg.closest && tg.closest("#arcade-hud,#ahud-fs")) return;
+          autoDone = true;
+          killHint();
+          if (fsEl()) return;
+          enter();
+        }
+        ["pointerup", "touchend", "keydown"].forEach(function (t) {
+          document.addEventListener(t, autoFS, true);
+        });
       } catch (e) {}
     })();
   } catch (e) {}

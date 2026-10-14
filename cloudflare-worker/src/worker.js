@@ -5,7 +5,7 @@ import CFG from "./games.json";
 const HOSTS = CFG.hosts;
 const ISO = new Set(CFG.iso || []);
 const ROOT = CFG.root_mounts || {};
-const SHIM_TAG = '<script src="/__shim.js?v=5"></script>';
+const SHIM_TAG = '<script src="/__shim.js?v=8"></script>';
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -118,7 +118,7 @@ export default {
 
     if (path === "/__shim.js") {
       return new Response(SHIM, {
-        headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "public, max-age=0, must-revalidate", ...CORS },
+        headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store", ...CORS },
       });
     }
 
@@ -212,6 +212,7 @@ export default {
     if (lc.includes("text/html")) {
       let html = await up.text();
       if (absBase) html = rewriteRoot(html, absBase);
+      out.set("Cache-Control", "no-store");
       return new Response(inject(html), { status: up.status, headers: out });
     }
 
