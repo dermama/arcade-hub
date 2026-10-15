@@ -28,15 +28,17 @@
     window.ARCADE = window.ARCADE || {};
     window.ARCADE.perf = { dpr: V_LOW ? 0.5 : 0.75, res: V_LOW ? 0.5 : 0.66, on: !!perfOn, resOn: !!resOn, low: !!LOW, vlow: !!V_LOW, real: RH };
 
-    var DESKTOP = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
-    var d = function (o, k, v) { try { Object.defineProperty(o, k, { get: function () { return v; }, configurable: true }); } catch (e) {} };
-    d(navigator, "userAgent", DESKTOP);
-    d(navigator, "appVersion", DESKTOP.replace("Mozilla/", ""));
-    d(navigator, "platform", "Win32");
-    d(navigator, "vendor", "Google Inc.");
-    d(navigator, "maxTouchPoints", Math.max(RH.touch || 0, 5));
-    d(navigator, "hardwareConcurrency", Math.max(RH.cores || 4, 8));
-    d(navigator, "deviceMemory", Math.max(RH.memory || 4, 8));
+    if (!RH.mobile) {
+      var DESKTOP = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
+      var d = function (o, k, v) { try { Object.defineProperty(o, k, { get: function () { return v; }, configurable: true }); } catch (e) {} };
+      d(navigator, "userAgent", DESKTOP);
+      d(navigator, "appVersion", DESKTOP.replace("Mozilla/", ""));
+      d(navigator, "platform", "Win32");
+      d(navigator, "vendor", "Google Inc.");
+      d(navigator, "maxTouchPoints", 0);
+      d(navigator, "hardwareConcurrency", 12);
+      d(navigator, "deviceMemory", 16);
+    }
 
     var FLOOR = { 0x8DFB: 8192, 0x8DFD: 8192, 0x0D33: 16384, 0x8073: 4096, 0x8872: 32, 0x8869: 16, 0x8B4A: 32 };
     function patch(proto) {
@@ -113,13 +115,7 @@
     })();
 
     var CSS = "#unity-mobile-warning,#mobile-warning,.mobile-warning,#unity-warning{display:none!important}";
-    CSS += "html.arcade-game-active,body.arcade-game-active{width:100%!important;height:100%!important;height:100dvh!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#000!important;position:fixed!important;inset:0!important;touch-action:none!important;-webkit-touch-callout:none!important;-webkit-user-select:none!important;user-select:none!important;box-sizing:border-box!important}";
-    CSS += "#unity-container,.unity-desktop,.unity-mobile,#game-container,#gameContainer,#canvas-container,.webgl-content,#gameCanvas,#screen,#app,#root{max-width:100vw!important;max-height:100dvh!important;box-sizing:border-box!important}";
-    CSS += "#unity-container.unity-desktop,#unity-container{position:absolute!important;left:50%!important;top:50%!important;transform-origin:center center!important;margin:0!important}";
-    CSS += "canvas:not(.arcade-raw){max-width:100vw!important;max-height:100dvh!important;object-fit:contain!important;touch-action:none!important}";
-    CSS += "iframe{max-width:100vw!important;max-height:100dvh!important}";
-    CSS += "@media(max-width:900px),(pointer:coarse){#unity-footer{display:none!important}#unity-warning{display:none!important}}";
-    CSS += "#arcade-hud{position:fixed;z-index:2147483000;direction:ltr;font-family:system-ui,'Segoe UI',Roboto,Arial,sans-serif;color:#eef1f8;pointer-events:none;bottom:max(14px,env(safe-area-inset-bottom,14px));left:max(14px,env(safe-area-inset-left,14px))}";
+    CSS += "#arcade-hud{position:fixed;z-index:2147483000;direction:ltr;font-family:system-ui,'Segoe UI',Roboto,Arial,sans-serif;color:#eef1f8;pointer-events:none;bottom:14px;left:14px}";
     CSS += "#arcade-hud *{box-sizing:border-box}";
     CSS += "#ahud-tog{pointer-events:auto;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(9,12,20,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px -8px rgba(0,0,0,.6);transition:transform .15s}";
     CSS += "#ahud-tog:hover{transform:scale(1.07)}#ahud-tog svg{width:20px;height:20px;fill:#a78bfa}";
@@ -134,15 +130,11 @@
     CSS += ".ahd-help{margin:6px 12px 10px;padding:8px 9px;border:1px dashed rgba(255,255,255,.14);border-radius:10px;font-size:10.5px;line-height:1.75;color:#9aa3b8}";
     CSS += ".ahd-note{margin:0 12px 10px;font-size:10.5px;color:#7ee7c0;line-height:1.6}";
     CSS += ".ahd-close{width:100%;border:0;border-top:1px solid rgba(255,255,255,.08);background:transparent;color:#8b93a7;padding:8px;font-size:11.5px;cursor:pointer}";
-    CSS += "#ahud-fs{position:fixed;z-index:2147483000;right:max(14px,env(safe-area-inset-right,14px));bottom:max(14px,env(safe-area-inset-bottom,14px));pointer-events:auto;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(9,12,20,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px -8px rgba(0,0,0,.6);transition:transform .15s;padding:0}";
+    CSS += "#ahud-fs{position:fixed;z-index:2147483000;right:14px;bottom:14px;pointer-events:auto;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(9,12,20,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px -8px rgba(0,0,0,.6);transition:transform .15s;padding:0}";
     CSS += "#ahud-fs:hover{transform:scale(1.07)}#ahud-fs svg{width:20px;height:20px;fill:none;stroke:#a78bfa;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}";
     CSS += "canvas:fullscreen{object-fit:contain;background:#000}:fullscreen{background:#000}";
     CSS += "#ahud-hint{position:fixed;z-index:2147483000;left:50%;top:14px;transform:translateX(-50%);pointer-events:none;background:rgba(9,12,20,.9);color:#cbd5e1;border:1px solid rgba(255,255,255,.14);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);padding:7px 13px;border-radius:999px;font:600 12px system-ui,-apple-system,sans-serif;box-shadow:0 10px 30px -10px rgba(0,0,0,.7);transition:opacity .45s ease;max-width:calc(100vw - 24px);text-align:center}";
     CSS += "#ahud-hint[hidden]{display:none}";
-    CSS += "#arcade-rot-hint{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483500;background:rgba(15,23,42,.92);color:#f1f5f9;border:1px solid rgba(167,139,250,.45);box-shadow:0 10px 30px -5px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);padding:8px 16px;border-radius:999px;font:600 12.5px system-ui,-apple-system,sans-serif;display:flex;align-items:center;gap:10px;pointer-events:auto;cursor:pointer;white-space:nowrap;user-select:none}";
-    CSS += "#arcade-rot-hint[hidden]{display:none!important}";
-    CSS += "#arcade-rot-hint svg{width:18px;height:18px;fill:#a78bfa;flex:none}";
-    CSS += "#arcade-rot-hint .arh-x{background:none;border:none;color:#94a3b8;font-size:15px;margin-left:4px;cursor:pointer;padding:0 4px}";
     try { var s = document.createElement("style"); s.textContent = CSS; (document.head || document.documentElement).appendChild(s); } catch (e) {}
 
     var hud = document.createElement("div");
@@ -363,207 +355,6 @@
           document.addEventListener(t, autoFS, true);
         });
       } catch (e) {}
-    })();
-
-    /* Mobile Responsive Autoscale Engine */
-    (function initMobileResponsiveEngine() {
-      // Safety guard: NEVER run inside the Arcade catalog / hub website!
-      if (document.getElementById("grid") || document.querySelector(".hero, .nav, #filters, .brand") || location.pathname === "/" || (location.pathname.endsWith("/index.html") && !location.pathname.includes("/files/") && !location.pathname.includes("/play/"))) {
-        return;
-      }
-
-      var isTouch = (RH.touch > 0) || RH.coarse || RH.mobile || (window.innerWidth <= 900);
-
-      var rotHint = document.createElement("div");
-      rotHint.id = "arcade-rot-hint";
-      rotHint.hidden = true;
-      rotHint.innerHTML = '<svg viewBox="0 0 24 24"><path d="M16.48 2.52c3.27 1.55 5.61 4.72 5.97 8.48h1.5C23.44 5.46 18.77.92 12.96.06V2.08c2.93.38 5.48 1.94 7.03 4.22l-2.01 2.01h5.95V2.36l-2.02 2.02c-1.39-1.34-3.09-2.31-4.99-2.73-1.04-.23-2.13-.35-3.25-.35-4.42 0-8.24 2.5-10.15 6.16l1.79.89C9.02 4.41 12.24 2.22 15.96 2.22c.17 0 .35.01.52.03v.27zm-8.96 18.96c-3.27-1.55-5.61-4.72-5.97-8.48H0c.51 5.54 5.18 10.08 10.99 10.94v-2.02c-2.93-.38-5.48-1.94-7.03-4.22l2.01-2.01H0v5.95l2.02-2.02c1.39 1.34 3.09 2.31 4.99 2.73 1.04.23 2.13.35 3.25.35 4.42 0 8.24-2.5 10.15-6.16l-1.79-.89c-1.73 3.32-4.95 5.51-8.67 5.51-.17 0-.35-.01-.52-.03v-.27z"/></svg>' +
-        '<span>Rotate phone to landscape for fullscreen view 🔄</span>' +
-        '<button class="arh-x" aria-label="Dismiss">✕</button>';
-
-      function checkOrientation() {
-        if (!document.body || !document.body.classList.contains("arcade-game-active")) {
-          rotHint.hidden = true;
-          return;
-        }
-        var w = window.innerWidth || document.documentElement.clientWidth;
-        var h = window.innerHeight || document.documentElement.clientHeight;
-        var isPortrait = h > w && isTouch;
-        if (isPortrait && !rotHint._dismissed) {
-          rotHint.hidden = false;
-        } else {
-          rotHint.hidden = true;
-        }
-      }
-
-      rotHint.addEventListener("click", function(e) {
-        if (e.target && e.target.classList.contains("arh-x")) {
-          e.stopPropagation();
-          rotHint.hidden = true;
-          rotHint._dismissed = true;
-          return;
-        }
-        try {
-          var root = document.documentElement;
-          var rf = root.requestFullscreen || root.webkitRequestFullscreen;
-          if (rf) {
-            rf.call(root).then(function() {
-              if (screen.orientation && screen.orientation.lock) {
-                screen.orientation.lock("landscape").catch(function() {});
-              }
-            }).catch(function() {});
-          }
-        } catch(err) {}
-        rotHint.hidden = true;
-        rotHint._dismissed = true;
-      });
-
-      function adaptGame() {
-        var winW = window.innerWidth || document.documentElement.clientWidth;
-        var winH = window.innerHeight || document.documentElement.clientHeight;
-        if (!winW || !winH) return;
-
-        // 1. Unity WebGL container & canvas
-        var uCont = document.getElementById("unity-container") || document.querySelector(".unity-desktop, .unity-mobile");
-        var canvas = document.querySelector("#unity-canvas, canvas#canvas, canvas.emscripten") || document.querySelector("canvas");
-
-        if (uCont && canvas) {
-          document.documentElement.classList.add("arcade-game-active");
-          document.body.classList.add("arcade-game-active");
-          checkOrientation();
-          var natW = canvas.width || 960;
-          var natH = canvas.height || 600;
-          if (natW < 100) natW = 960;
-          if (natH < 100) natH = 600;
-
-          var ar = natW / natH;
-          var fitW = winW;
-          var fitH = fitW / ar;
-          if (fitH > winH) {
-            fitH = winH;
-            fitW = fitH * ar;
-          }
-          fitW = Math.floor(fitW);
-          fitH = Math.floor(fitH);
-
-          uCont.style.setProperty("width", fitW + "px", "important");
-          uCont.style.setProperty("height", fitH + "px", "important");
-          uCont.style.setProperty("max-width", "100vw", "important");
-          uCont.style.setProperty("max-height", "100dvh", "important");
-          uCont.style.setProperty("position", "absolute", "important");
-          uCont.style.setProperty("left", "50%", "important");
-          uCont.style.setProperty("top", "50%", "important");
-          uCont.style.setProperty("transform", "translate(-50%, -50%)", "important");
-          uCont.style.setProperty("margin", "0", "important");
-
-          canvas.style.setProperty("width", fitW + "px", "important");
-          canvas.style.setProperty("height", fitH + "px", "important");
-          canvas.style.setProperty("max-width", "100vw", "important");
-          canvas.style.setProperty("max-height", "100dvh", "important");
-          canvas.style.setProperty("display", "block", "important");
-          return;
-        }
-
-        // 2. Direct canvas without unity container
-        if (canvas) {
-          document.documentElement.classList.add("arcade-game-active");
-          document.body.classList.add("arcade-game-active");
-          checkOrientation();
-
-          var natW = canvas.width || 960;
-          var natH = canvas.height || 600;
-          if (natW < 50 || natH < 50) { natW = 960; natH = 600; }
-          var ar = natW / natH;
-
-          var fitW = winW;
-          var fitH = fitW / ar;
-          if (fitH > winH) {
-            fitH = winH;
-            fitW = fitH * ar;
-          }
-          fitW = Math.floor(fitW);
-          fitH = Math.floor(fitH);
-
-          canvas.style.setProperty("width", fitW + "px", "important");
-          canvas.style.setProperty("height", fitH + "px", "important");
-          canvas.style.setProperty("max-width", "100vw", "important");
-          canvas.style.setProperty("max-height", "100dvh", "important");
-          canvas.style.setProperty("position", "absolute", "important");
-          canvas.style.setProperty("left", "50%", "important");
-          canvas.style.setProperty("top", "50%", "important");
-          canvas.style.setProperty("transform", "translate(-50%, -50%)", "important");
-          canvas.style.setProperty("margin", "0", "important");
-          canvas.style.setProperty("display", "block", "important");
-          return;
-        }
-
-        // 3. Iframe games
-        var iframes = document.querySelectorAll("iframe");
-        var hasGameIframe = false;
-        for (var i = 0; i < iframes.length; i++) {
-          var ifr = iframes[i];
-          if (ifr.id !== "arcade-hud") {
-            hasGameIframe = true;
-            ifr.style.setProperty("width", "100vw", "important");
-            ifr.style.setProperty("height", "100dvh", "important");
-            ifr.style.setProperty("max-width", "100vw", "important");
-            ifr.style.setProperty("max-height", "100dvh", "important");
-            ifr.style.setProperty("border", "none", "important");
-          }
-        }
-        if (hasGameIframe) {
-          document.documentElement.classList.add("arcade-game-active");
-          document.body.classList.add("arcade-game-active");
-          checkOrientation();
-          return;
-        }
-
-        // No active game element detected
-        document.documentElement.classList.remove("arcade-game-active");
-        document.body.classList.remove("arcade-game-active");
-        rotHint.hidden = true;
-      }
-
-      // Prevent mobile touch bouncing / scroll-away ONLY in active game mode
-      document.addEventListener("touchmove", function (e) {
-        if (!document.body || !document.body.classList.contains("arcade-game-active")) return;
-        if (e.target && (e.target.tagName === "CANVAS" || (e.target.closest && e.target.closest("#unity-container,#game-container,canvas")))) {
-          e.preventDefault();
-        }
-      }, { passive: false });
-
-      window.addEventListener("resize", adaptGame);
-      window.addEventListener("orientationchange", function() {
-        setTimeout(adaptGame, 100);
-        setTimeout(adaptGame, 400);
-      });
-
-      function onReady() {
-        try {
-          if (!document.getElementById("arcade-rot-hint")) {
-            document.body.appendChild(rotHint);
-          }
-        } catch(e) {}
-        adaptGame();
-        try {
-          var obs = new MutationObserver(function() { adaptGame(); });
-          obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "width", "height", "class"] });
-        } catch(e) {}
-      }
-
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", onReady);
-      } else {
-        onReady();
-      }
-
-      adaptGame();
-      var ticks = 0;
-      var interval = setInterval(function() {
-        adaptGame();
-        ticks++;
-        if (ticks > 30) clearInterval(interval);
-      }, 350);
     })();
   } catch (e) {}
 })();
