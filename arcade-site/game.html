@@ -2,6 +2,17 @@
 <html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
+<script>
+/* Arcade cache guard — wipes Cache Storage / service workers and force-refreshes once when the build version changes. */
+(function(){var B="v28";var prev=null;
+try{prev=localStorage.getItem("arcade.build");localStorage.setItem("arcade.build",B);}catch(e){}
+function purge(cb){try{if(window.caches&&caches.keys)caches.keys().then(function(k){k.forEach(function(n){caches.delete(n);});});}catch(e){}
+try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister();});});}catch(e){}if(cb)cb();}
+if(prev!==null&&prev!==B){purge(function(){var u=new URL(location.href);u.searchParams.set("nc",Date.now());location.replace(u.toString());});}
+document.addEventListener("DOMContentLoaded",function(){var b=document.getElementById("purge-cache");if(!b)return;
+b.addEventListener("click",function(){try{localStorage.removeItem("arcade.build");}catch(e){}purge(function(){var u=new URL(location.href);u.searchParams.set("nc",Date.now());location.replace(u.toString());});});});
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0c0c0d">
 <title id="page-title">Play — Arcade Games</title>
@@ -9,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/styles.css?v=28">
 </head>
 <body>
 
@@ -143,9 +154,10 @@
 <footer>
   <p>Arcade · Browser games gateway</p>
   <p><a href="/">← Back to all games</a></p>
+  <p><button id="purge-cache" type="button" title="Clear all cached files and load the newest version" style="background:none;border:1px solid currentColor;color:inherit;font:inherit;padding:4px 12px;border-radius:999px;cursor:pointer;opacity:.65">↻ Clear cache &amp; update</button></p>
 </footer>
 
-<script src="/config.js?v=27"></script>
+<script src="/config.js?v=28"></script>
 <script>
 (function () {
   /* ── helpers ── */
