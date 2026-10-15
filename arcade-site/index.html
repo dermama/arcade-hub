@@ -3,97 +3,65 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#07080d">
-<title>Arcade — Games Gateway</title>
-<meta name="description" content="Play browser games directly on your phone or computer.">
+<meta name="theme-color" content="#0c0c0d">
+<title>Arcade Games — Play browser games, no download</title>
+<meta name="description" content="A hand-picked collection of browser games. Play directly on phone or computer — no download, no install.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=27">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-<div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
-<div class="grain" aria-hidden="true"></div>
 
-<header class="nav">
-  <a class="brand" href="/">
-    <span class="brand-mark">◈</span>
-    <span class="brand-text">Arcade<em>GAMES</em></span>
-  </a>
-  <div class="nav-right">
-    <div class="search">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 104.47 10.03l4.25 4.25 1.41-1.41-4.25-4.25A6 6 0 0010 4zm0 2a4 4 0 110 8 4 4 0 010-8z"/></svg>
-      <input id="q" type="search" placeholder="Search for a game…" autocomplete="off" aria-label="Search">
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a class="logo" href="/">
+      <span>Arcade</span><em>GAMES</em><span class="logo-dot"></span>
+    </a>
+    <div class="nav-links">
+      <a href="/" class="on">All Games</a>
     </div>
-    <button class="ghost" id="share" title="Copy my personal link">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 16.1a2.9 2.9 0 00-2 0l-6-6a2.9 2.9 0 000-2l6-6a3 3 0 10-1.2-1.2l-6 6a3 3 0 100 4.2l6 6a3 3 0 103.2-1z" transform="translate(0 2) scale(.86)"/></svg>
-      <span>My link</span>
-    </button>
-    <button class="player" id="player" title="Player profile — click to change your name">
-      <span class="pav" id="pav">?</span>
-      <span class="pmeta"><span id="pname">Player</span><small>Favorites <b id="favcount"></b></small></span>
-    </button>
-  </div>
-</header>
-
-<section class="hero">
-  <p class="eyebrow">Play from the browser — phone or computer</p>
-  <h1>Play <span class="grad">without limits</span></h1>
-  <p class="sub">A hand-picked collection of games that run straight from the browser, with a transparent bypass of device checks so they work on your phone.</p>
-  <div class="filters" id="filters" role="tablist">
-    <button class="chip is-on" data-f="all">All</button>
-    <button class="chip" data-f="mobile">Runs on phone</button>
-    <button class="chip" data-f="multi">Multiplayer</button>
-    <button class="chip" data-f="heavy">Heavy</button>
-    <button class="chip" data-f="fav">★ Favorites</button>
-  </div>
-</section>
-
-<main>
-  <div class="status" id="status">Loading…</div>
-  <section class="recent" id="recent" hidden></section>
-  <section class="grid" id="grid" aria-live="polite"></section>
-</main>
-
-<div class="stage-overlay" id="stage" hidden>
-  <div class="stage-bar">
-    <button class="stage-btn stage-back" id="stage-back" title="Back to Library (خروج للموقع)">
-      <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-      <span>Back</span>
-    </button>
-    <div class="stage-info">
-      <span class="stage-title" id="stage-title">Game</span>
-      <span class="stage-sub" id="stage-sub">Arcade Player</span>
-    </div>
-    <div class="stage-actions">
-      <button class="stage-btn" id="stage-rot" title="Rotate (تدوير)">
-        <svg viewBox="0 0 24 24"><path d="M16.48 2.52c3.27 1.55 5.61 4.72 5.97 8.48h1.5C23.44 5.46 18.77.92 12.96.06V2.08c2.93.38 5.48 1.94 7.03 4.22l-2.01 2.01h5.95V2.36l-2.02 2.02c-1.39-1.34-3.09-2.31-4.99-2.73-1.04-.23-2.13-.35-3.25-.35-4.42 0-8.24 2.5-10.15 6.16l1.79.89C9.02 4.41 12.24 2.22 15.96 2.22c.17 0 .35.01.52.03v.27zm-8.96 18.96c-3.27-1.55-5.61-4.72-5.97-8.48H0c.51 5.54 5.18 10.08 10.99 10.94v-2.02c-2.93-.38-5.48-1.94-7.03-4.22l2.01-2.01H0v5.95l2.02-2.02c1.39 1.34 3.09 2.31 4.99 2.73 1.04.23 2.13.35 3.25.35 4.42 0 8.24-2.5 10.15-6.16l-1.79-.89c-1.73 3.32-4.95 5.51-8.67 5.51-.17 0-.35-.01-.52-.03v-.27z"/></svg>
-      </button>
-      <button class="stage-btn" id="stage-reload" title="Reload (إعادة تشغيل)">
-        <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-      </button>
-      <button class="stage-btn" id="stage-fs" title="Fullscreen (ملء الشاشة)">
-        <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
-      </button>
-      <a class="stage-btn" id="stage-ext" target="_blank" rel="noopener" title="Open in new window (فتح بنافذة)">
-        <svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
-      </a>
+    <div class="nav-right">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 104.47 10.03l4.25 4.25 1.41-1.41-4.25-4.25A6 6 0 0010 4zm0 2a4 4 0 110 8 4 4 0 010-8z"/></svg>
+        <input id="q" type="search" placeholder="Search games…" autocomplete="off" aria-label="Search games">
+      </div>
     </div>
   </div>
-  <div class="stage-viewport" id="stage-viewport">
-    <div class="stage-loader" id="stage-loader">
-      <div class="stage-spinner"></div>
-      <span>Loading game into player…</span>
-    </div>
-    <iframe class="stage-frame" id="stage-frame" allow="autoplay; fullscreen; gamepad; cross-origin-isolated" allowfullscreen></iframe>
-  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-kicker"><span id="game-count">—</span> games · no download · no install</div>
+  <h1>Play it in <span class="hero-grad">your browser.</span></h1>
+  <p class="hero-sub">A hand-picked collection of browser games — Unity ports, decompiled classics, and web-native titles. Works on phone and PC, straight from the browser. Pick a game and press Play.</p>
+  <ul class="chips" id="keyword-chips">
+    <li>Unity WebGL</li><li>Browser ports</li><li>Phone friendly</li>
+    <li>No download</li><li>No install</li><li>Multiplayer</li>
+  </ul>
 </div>
 
-<footer class="foot">
-  <span>Arcade · Browser games gateway</span>
-  <span class="dot"></span>
-  <span id="count">0 games</span>
+<!-- FILTERS -->
+<div class="filter-bar">
+  <button class="chip on" data-f="all" id="f-all">All</button>
+  <button class="chip" data-f="mobile">📱 Runs on phone</button>
+  <button class="chip" data-f="multi">🎮 Multiplayer</button>
+  <button class="chip" data-f="heavy">⚡ Heavy</button>
+  <span class="count-label" id="count">0 games</span>
+</div>
+
+<!-- GAME GRID -->
+<div class="main-content">
+  <div class="status-msg" id="status">Loading…</div>
+  <div class="grid" id="grid" aria-live="polite"></div>
+</div>
+
+<footer>
+  <p>Arcade · Browser games gateway</p>
 </footer>
+
+<div id="toast"></div>
 
 <script src="/__shim.js?v=27"></script>
 <script src="/config.js?v=27"></script>
