@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <script>
 /* Arcade cache guard — wipes Cache Storage / service workers and reloads the newest build. */
-(function(){var B="v29";
+(function(){var B="v31";
 function purge(){try{if(window.caches&&caches.keys)caches.keys().then(function(k){k.forEach(function(n){caches.delete(n);});});}catch(e){}
 try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister();});});}catch(e){}}
 function hardReload(){purge();var u=new URL(location.href);u.searchParams.set("nc",Date.now());location.replace(u.toString());}
@@ -22,7 +22,7 @@ window.arcadeClearCache=hardReload;
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=30">
+<link rel="stylesheet" href="/styles.css?v=31">
 </head>
 <body>
 
@@ -77,9 +77,9 @@ window.arcadeClearCache=hardReload;
 
 <div id="toast"></div>
 
-<script src="/__shim.js?v=30"></script>
-<script src="/config.js?v=30"></script>
-<script src="/app.js?v=30"></script>
+<script src="/__shim.js?v=31"></script>
+<script src="/config.js?v=31"></script>
+<script src="/app.js?v=31"></script>
 <button id="purge-fab" data-purge type="button" aria-label="Clear cache and load the newest version" title="Clear cache &amp; load newest version"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A7.958 7.958 0 0012 4a8 8 0 108 8h-2a6 6 0 11-1.76-4.24L13 11h7V4l-2.35 2.35z"/></svg><span>Clear cache</span></button>
 </body>
 </html>

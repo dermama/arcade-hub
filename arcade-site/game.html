@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <script>
 /* Arcade cache guard — wipes Cache Storage / service workers and reloads the newest build. */
-(function(){var B="v29";
+(function(){var B="v31";
 function purge(){try{if(window.caches&&caches.keys)caches.keys().then(function(k){k.forEach(function(n){caches.delete(n);});});}catch(e){}
 try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister();});});}catch(e){}}
 function hardReload(){purge();var u=new URL(location.href);u.searchParams.set("nc",Date.now());location.replace(u.toString());}
@@ -22,7 +22,7 @@ window.arcadeClearCache=hardReload;
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=30">
+<link rel="stylesheet" href="/styles.css?v=31">
 </head>
 <body>
 
@@ -163,7 +163,7 @@ window.arcadeClearCache=hardReload;
   <p><button id="purge-cache" data-purge type="button" title="Clear all cached files and load the newest version" style="background:none;border:1px solid var(--acc);color:var(--acc);font:inherit;padding:6px 14px;border-radius:999px;cursor:pointer">↻ Clear cache &amp; update</button></p>
 </footer>
 
-<script src="/config.js?v=30"></script>
+<script src="/config.js?v=31"></script>
 <script>
 (function () {
   /* ── helpers ── */
