@@ -22,7 +22,7 @@ window.arcadeClearCache=hardReload;
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=31">
+<link rel="stylesheet" href="/styles.css?v=32">
 </head>
 <body>
 
@@ -46,6 +46,7 @@ window.arcadeClearCache=hardReload;
 
 <!-- HERO -->
 <div class="hero">
+  <canvas id="hero-code" class="hero-code" aria-hidden="true"></canvas>
   <div class="hero-kicker"><span id="game-count">—</span> games · no download · no install</div>
   <h1>Play it in <span class="hero-grad">your browser.</span></h1>
   <p class="hero-sub">A hand-picked collection of browser games — Unity ports, decompiled classics, and web-native titles. Works on phone and PC, straight from the browser. Pick a game and press Play.</p>
@@ -81,5 +82,122 @@ window.arcadeClearCache=hardReload;
 <script src="/config.js?v=31"></script>
 <script src="/app.js?v=31"></script>
 <button id="purge-fab" data-purge type="button" aria-label="Clear cache and load the newest version" title="Clear cache &amp; load newest version"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A7.958 7.958 0 0012 4a8 8 0 108 8h-2a6 6 0 11-1.76-4.24L13 11h7V4l-2.35 2.35z"/></svg><span>Clear cache</span></button>
+<script>
+/* Hero code-video — the catalogue replayed as a binary/dot-matrix film.
+   Samples real thumbnail stills into a glyph grid (1 / 0 / ·) each frame. */
+(function () {
+  var cv = document.getElementById('hero-code');
+  if (!cv || !cv.getContext) return;
+  var ctx = cv.getContext('2d'); if (!ctx) return;
+  var reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var off = document.createElement('canvas'), octx = off.getContext('2d', { willReadFrequently: true });
+  if (!octx) return;
+  var PAL = ['rgba(157,255,92,.20)', 'rgba(255,193,77,.30)', 'rgba(255,193,77,.46)', 'rgba(255,207,80,.62)',
+             'rgba(255,225,77,.80)', 'rgba(255,236,140,.92)', 'rgba(255,245,196,1)', 'rgba(255,253,240,1)'];
+  var VIOLET = 'rgba(124,92,255,.85)', GREEN = 'rgba(157,255,92,.34)';
+  var imgs = [], shot = 0, frame = 0, ready = false, raf = 0, last = 0, visible = true;
+  var W = 0, H = 0, cell = 8, cols = 0, rows = 0, dpr = 1;
+  var HOLD = 4300, FADE = 1200, STEP = 1000 / 24, t0 = 0, rt = 0;
+
+  function resize() {
+    var r = cv.getBoundingClientRect();
+    W = Math.max(1, Math.round(r.width)); H = Math.max(1, Math.round(r.height));
+    dpr = Math.min(1.6, window.devicePixelRatio || 1);
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cell = Math.max(7, Math.min(15, Math.round(W / 140)));
+    cols = Math.max(8, Math.ceil(W / cell)); rows = Math.max(6, Math.ceil(H / cell));
+    off.width = cols; off.height = rows;
+    octx.imageSmoothingEnabled = true; octx.imageSmoothingQuality = 'high';
+  }
+
+  function cover(img, alpha, scale, panx, pany) {
+    if (!img || !img.naturalWidth) return;
+    var s = Math.max(cols / img.naturalWidth, rows / img.naturalHeight) * scale;
+    var dw = img.naturalWidth * s, dh = img.naturalHeight * s;
+    octx.globalAlpha = alpha;
+    octx.drawImage(img, (cols - dw) / 2 + panx, (rows - dh) / 2 + pany, dw, dh);
+    octx.globalAlpha = 1;
+  }
+
+  function render(el) {
+    var prog = Math.min(1, el / HOLD);
+    var k = el > HOLD - FADE ? (el - (HOLD - FADE)) / FADE : 0;
+    octx.clearRect(0, 0, cols, rows);
+    cover(imgs[shot], 1, 1.03 + 0.07 * prog,
+          Math.sin(prog * Math.PI) * cols * 0.04, Math.cos(prog * Math.PI * 0.7) * rows * 0.03);
+    if (k > 0 && imgs.length > 1) cover(imgs[(shot + 1) % imgs.length], k, 1.03, 0, 0);
+    var d = octx.getImageData(0, 0, cols, rows).data;
+    ctx.clearRect(0, 0, W, H);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '600 ' + (cell * 0.95).toFixed(1) + 'px "Geist Mono", ui-monospace, monospace';
+    var fx = cell / 2, fy = cell * 0.54, x, y, p, b, ch, col, noise;
+    for (y = 0; y < rows; y++) {
+      for (x = 0; x < cols; x++) {
+        p = (y * cols + x) * 4;
+        b = (0.2126 * d[p] + 0.7152 * d[p + 1] + 0.0722 * d[p + 2]) * 8 / 255 | 0;
+        if (b > 7) b = 7;
+        noise = (x * 7 + y * 13 + frame) % 101;
+        if (b === 0) {
+          if (noise !== 0) continue;
+          col = GREEN; ch = '\u00b7';
+        } else {
+          col = PAL[b];
+          ch = b < 3 ? '\u00b7' : (b < 5 ? '0' : '1');
+          if (noise === 0) ch = ch === '1' ? '0' : '1';
+          if (b > 2 && (x * 31 + y * 17 + frame) % 613 === 0) col = VIOLET;
+        }
+        ctx.fillStyle = col;
+        ctx.fillText(ch, x * cell + fx, y * cell + fy);
+      }
+    }
+    frame++;
+  }
+
+  function tick(now) {
+    raf = requestAnimationFrame(tick);
+    if (!ready || !visible || document.hidden) { last = now; return; }
+    if (now - last < STEP) return;
+    last = now;
+    var el = now - t0;
+    if (el >= HOLD) { shot = (shot + 1) % imgs.length; t0 = now; el = 0; }
+    render(el);
+    cv.dataset.state = 'on';
+  }
+
+  function start() {
+    imgs = imgs.filter(function (m) { return m && m.naturalWidth; });
+    if (imgs.length < 2) { cv.remove(); return; }
+    ready = true; resize(); t0 = performance.now(); last = 0;
+    if (reduce) { render(0); cv.dataset.state = 'static'; }
+    else raf = requestAnimationFrame(tick);
+  }
+
+  fetch('/images.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }).then(function (map) {
+    var vals = Object.keys(map || {}).map(function (k) { return map[k]; }).filter(Boolean);
+    if (vals.length < 4) { cv.remove(); return; }
+    var N = Math.min(10, vals.length), left = 0;
+    for (var i = 0; i < N; i++) {
+      (function (src) {
+        var im = new Image(); im.decoding = 'async';
+        left++;
+        im.onload = im.onerror = function () { if (--left === 0 && !ready) start(); };
+        imgs.push(im);
+        im.src = src.charAt(0) === '/' ? src : '/' + src;
+      })(vals[Math.floor(i * vals.length / N)]);
+    }
+    setTimeout(function () { if (!ready) start(); }, 4000);
+  }).catch(function () { if (cv.parentNode) cv.remove(); });
+
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (es) { visible = es[0].isIntersecting; }, { threshold: 0.04 }).observe(cv);
+  }
+  document.addEventListener('visibilitychange', function () { last = 0; });
+  window.addEventListener('resize', function () {
+    clearTimeout(rt);
+    rt = setTimeout(function () { if (ready) { resize(); if (reduce) render(0); } }, 160);
+  });
+})();
+</script>
 </body>
 </html>
