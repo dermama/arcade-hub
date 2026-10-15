@@ -51,7 +51,7 @@ function rewriteCss(css, mount) {
 
 function inject(html) {
   const metaTag = '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">';
-  const earlyStyle = '<style id="arcade-early-fit">html,body{width:100%!important;height:100%!important;height:100dvh!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#000!important;position:fixed!important;inset:0!important;touch-action:none!important}#unity-container,.unity-desktop,.unity-mobile,#game-container,#canvas-container,canvas{max-width:100vw!important;max-height:100dvh!important}</style>';
+  const earlyStyle = '<style id="arcade-early-fit">html.arcade-game-active,body.arcade-game-active{width:100%!important;height:100%!important;height:100dvh!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#000!important;position:fixed!important;inset:0!important;touch-action:none!important}#unity-container,.unity-desktop,.unity-mobile,#game-container,#canvas-container,canvas{max-width:100vw!important;max-height:100dvh!important}</style>';
   
   if (/<meta[^>]+name=["']?viewport[^>]*>/i.test(html)) {
     html = html.replace(/<meta[^>]+name=["']?viewport[^>]*>/i, metaTag);
