@@ -82,7 +82,7 @@ function renderRecent(){
   box.innerHTML = `<div class="recent-h"><span>Continue playing</span><span class="line"></span></div>
     <div class="recent-row">` + RECENT.map(r => {
       const g = { key:r.key, name:r.name, path:r.path, root:r.root };
-      return `<a class="mini" href="${urlFor(g)}" target="_blank" rel="noopener">
+      return `<a class="mini card-link" href="${urlFor(g)}" data-key="${esc(r.key)}" data-name="${esc(r.name)}" data-path="${esc(r.path)}" data-root="${r.root?1:0}">
         <span class="mini-dot"></span>${esc(r.name)}</a>`;
     }).join('') + `</div>`;
 }
@@ -147,8 +147,11 @@ document.getElementById('grid').addEventListener('click', e => {
   }
   const a = e.target.closest('.card-link');
   if (a){
-    pushRecent({ key:a.dataset.key, name:a.dataset.name, path:a.dataset.path, root:a.dataset.root === '1' });
+    e.preventDefault();
+    const g = { key:a.dataset.key, name:a.dataset.name, path:a.dataset.path, root:a.dataset.root === '1' };
+    pushRecent(g);
     renderRecent();
+    openStage(g);
   }
 });
 
@@ -325,3 +328,123 @@ function clearGameData(g){
   }
   setTimeout(() => fin(`Finished clearing "${g.name}" (without full confirmation).`, 'warn'), 9000);
 }
+
+/* ---- In-App Mobile Game Stage (Dedicated Responsive Player) ---- */
+let activeGame = null;
+
+function openStage(g) {
+  activeGame = g;
+  const stage = document.getElementById('stage');
+  const frame = document.getElementById('stage-frame');
+  const title = document.getElementById('stage-title');
+  const sub = document.getElementById('stage-sub');
+  const ext = document.getElementById('stage-ext');
+  const loader = document.getElementById('stage-loader');
+
+  title.textContent = g.name || 'Game';
+  sub.textContent = (g.key || '').toUpperCase();
+  const url = urlFor(g);
+  ext.href = url;
+
+  loader.classList.remove('hidden');
+  frame.src = url;
+
+  frame.onload = () => {
+    setTimeout(() => loader.classList.add('hidden'), 400);
+  };
+
+  stage.hidden = false;
+  document.body.style.overflow = 'hidden';
+
+  try {
+    history.pushState({ arcadeStage: true }, '', '#play=' + encodeURIComponent(gid(g)));
+  } catch(e) {}
+}
+
+function closeStage() {
+  const stage = document.getElementById('stage');
+  const frame = document.getElementById('stage-frame');
+  const loader = document.getElementById('stage-loader');
+
+  if (document.fullscreenElement) {
+    try { document.exitFullscreen(); } catch(e) {}
+  }
+
+  stage.hidden = true;
+  frame.src = 'about:blank';
+  loader.classList.remove('hidden');
+  document.body.style.overflow = '';
+  activeGame = null;
+
+  if (location.hash && location.hash.startsWith('#play=')) {
+    try { history.replaceState(null, '', location.pathname + location.search); } catch(e) {}
+  }
+}
+
+document.getElementById('stage-back').addEventListener('click', closeStage);
+
+document.getElementById('stage-reload').addEventListener('click', () => {
+  if (activeGame) {
+    const frame = document.getElementById('stage-frame');
+    const loader = document.getElementById('stage-loader');
+    loader.classList.remove('hidden');
+    frame.src = urlFor(activeGame);
+  }
+});
+
+document.getElementById('stage-fs').addEventListener('click', () => {
+  const stage = document.getElementById('stage');
+  if (document.fullscreenElement) {
+    try { document.exitFullscreen(); } catch(e) {}
+  } else {
+    try {
+      const rf = stage.requestFullscreen || stage.webkitRequestFullscreen;
+      if (rf) rf.call(stage);
+    } catch(e) {}
+  }
+});
+
+document.getElementById('stage-rot').addEventListener('click', () => {
+  const stage = document.getElementById('stage');
+  try {
+    const rf = stage.requestFullscreen || stage.webkitRequestFullscreen;
+    if (rf && !document.fullscreenElement) {
+      rf.call(stage).then(() => {
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock('landscape').catch(() => {});
+        }
+      }).catch(() => {});
+    } else if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('landscape').catch(() => {});
+    }
+  } catch(e) {}
+});
+
+// Support clicking recent games row to open stage as well
+const recentBox = document.getElementById('recent');
+if (recentBox) {
+  recentBox.addEventListener('click', e => {
+    const a = e.target.closest('.card-link');
+    if (a) {
+      e.preventDefault();
+      const g = { key: a.dataset.key, name: a.dataset.name, path: a.dataset.path, root: a.dataset.root === '1' };
+      pushRecent(g);
+      renderRecent();
+      openStage(g);
+    }
+  });
+}
+
+window.addEventListener('popstate', () => {
+  const stage = document.getElementById('stage');
+  if (stage && !stage.hidden) {
+    closeStage();
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const stage = document.getElementById('stage');
+    if (stage && !stage.hidden) closeStage();
+  }
+});

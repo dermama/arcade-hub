@@ -50,15 +50,25 @@ function rewriteCss(css, mount) {
 }
 
 function inject(html) {
-  let pre = "";
-  if (!/<meta[^>]+name=["']?viewport/i.test(html)) {
-    pre += '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">';
+  const metaTag = '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">';
+  const fitStyle = '<style id="arcade-game-autofit">' +
+    'html,body{margin:0!important;padding:0!important;width:100%!important;height:100%!important;height:100dvh!important;overflow:hidden!important;background:#000!important;display:flex!important;align-items:center!important;justify-content:center!important}' +
+    '#unity-container,#unity-container.unity-desktop,.unity-desktop,.unity-mobile,#game-container,#canvas-container,.webgl-content,#app,#root{position:absolute!important;inset:0!important;top:0!important;left:0!important;width:100%!important;height:100%!important;transform:none!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;margin:0!important}' +
+    '#unity-canvas,canvas{width:100%!important;height:100%!important;max-width:100vw!important;max-height:100dvh!important;object-fit:contain!important;display:block!important;margin:auto!important}' +
+    '#unity-footer,#unity-warning,#unity-mobile-warning{display:none!important}' +
+    '</style>';
+
+  if (/<meta[^>]+name=["']?viewport[^>]*>/i.test(html)) {
+    html = html.replace(/<meta[^>]+name=["']?viewport[^>]*>/i, metaTag);
+  } else {
+    html = metaTag + html;
   }
-  pre += SHIM_TAG;
+
+  const payload = SHIM_TAG + fitStyle;
   if (/<head[^>]*>/i.test(html)) {
-    return html.replace(/<head[^>]*>/i, (m) => m + pre);
+    return html.replace(/<head[^>]*>/i, (m) => m + payload);
   }
-  return pre + html;
+  return payload + html;
 }
 
 const STOP = new Set(["index", "files", "assets", "static", "public", "build", "css", "js", "data", "img", "images", "game", "games", "play", "web", "dist", "media", "content", "www", "com", "net", "org", "io", "app", "config", "scripts", "json"]);
