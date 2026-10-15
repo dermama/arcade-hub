@@ -5,7 +5,7 @@ import CFG from "./games.json";
 const HOSTS = CFG.hosts;
 const ISO = new Set(CFG.iso || []);
 const ROOT = CFG.root_mounts || {};
-const SHIM_TAG = '<script src="/__shim.js?v=12"></script>';
+const SHIM_TAG = '<script src="/__shim.js?v=25"></script>';
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -50,15 +50,20 @@ function rewriteCss(css, mount) {
 }
 
 function inject(html) {
-  let pre = "";
-  if (!/<meta[^>]+name=["']?viewport/i.test(html)) {
-    pre += '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">';
+  const metaTag = '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">';
+  const earlyStyle = '<style id="arcade-early-fit">html,body{width:100%!important;height:100%!important;height:100dvh!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#000!important;position:fixed!important;inset:0!important;touch-action:none!important}#unity-container,.unity-desktop,.unity-mobile,#game-container,#canvas-container,canvas{max-width:100vw!important;max-height:100dvh!important}</style>';
+  
+  if (/<meta[^>]+name=["']?viewport[^>]*>/i.test(html)) {
+    html = html.replace(/<meta[^>]+name=["']?viewport[^>]*>/i, metaTag);
+  } else {
+    html = metaTag + html;
   }
-  pre += SHIM_TAG;
+
+  const payload = SHIM_TAG + earlyStyle;
   if (/<head[^>]*>/i.test(html)) {
-    return html.replace(/<head[^>]*>/i, (m) => m + pre);
+    return html.replace(/<head[^>]*>/i, (m) => m + payload);
   }
-  return pre + html;
+  return payload + html;
 }
 
 const STOP = new Set(["index", "files", "assets", "static", "public", "build", "css", "js", "data", "img", "images", "game", "games", "play", "web", "dist", "media", "content", "www", "com", "net", "org", "io", "app", "config", "scripts", "json"]);

@@ -14,15 +14,29 @@
       } catch (e) {}
       window.__realHardware = RH;
     }
+
+    var LOW = RH.touch > 0 || (RH.cores > 0 && RH.cores <= 4) || (RH.memory > 0 && RH.memory <= 4);
+    var V_LOW = (RH.cores > 0 && RH.cores <= 2) || (RH.memory > 0 && RH.memory <= 2);
+    var perfOn, resOn;
+    try {
+      var lp = localStorage.getItem("arcade.perf");
+      var lr = localStorage.getItem("arcade.res");
+      perfOn = lp === null ? LOW : lp === "1";
+      resOn = lr === null ? LOW : lr === "1";
+    } catch (e) { perfOn = LOW; resOn = LOW; }
+
+    window.ARCADE = window.ARCADE || {};
+    window.ARCADE.perf = { dpr: V_LOW ? 0.5 : 0.75, res: V_LOW ? 0.5 : 0.66, on: !!perfOn, resOn: !!resOn, low: !!LOW, vlow: !!V_LOW, real: RH };
+
     var DESKTOP = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
     var d = function (o, k, v) { try { Object.defineProperty(o, k, { get: function () { return v; }, configurable: true }); } catch (e) {} };
     d(navigator, "userAgent", DESKTOP);
     d(navigator, "appVersion", DESKTOP.replace("Mozilla/", ""));
     d(navigator, "platform", "Win32");
     d(navigator, "vendor", "Google Inc.");
-    d(navigator, "maxTouchPoints", 0);
-    d(navigator, "hardwareConcurrency", 12);
-    d(navigator, "deviceMemory", 16);
+    d(navigator, "maxTouchPoints", Math.max(RH.touch || 0, 5));
+    d(navigator, "hardwareConcurrency", Math.max(RH.cores || 4, 8));
+    d(navigator, "deviceMemory", Math.max(RH.memory || 4, 8));
 
     var FLOOR = { 0x8DFB: 8192, 0x8DFD: 8192, 0x0D33: 16384, 0x8073: 4096, 0x8872: 32, 0x8869: 16, 0x8B4A: 32 };
     function patch(proto) {
@@ -38,8 +52,489 @@
     patch(window.WebGLRenderingContext && window.WebGLRenderingContext.prototype);
     patch(window.WebGL2RenderingContext && window.WebGL2RenderingContext.prototype);
 
-    // hide cosmetic mobile warnings (non-blocking overlays)
+    (function () {
+      try {
+        var g = HTMLCanvasElement.prototype.getContext;
+        if (!g) return;
+        HTMLCanvasElement.prototype.getContext = function (t, a) {
+          try {
+            if (typeof t === "string" && /(webgl2|webgl)/i.test(t)) {
+              a = a || {};
+              if (window.ARCADE.perf.on) {
+                if (a.powerPreference == null) a.powerPreference = "low-power";
+                if (a.antialias == null) a.antialias = false;
+              }
+              return g.call(this, t, a);
+            }
+          } catch (e) {}
+          return g.apply(this, arguments);
+        };
+      } catch (e) {}
+    })();
+
+    if (perfOn) (function () {
+      try {
+        var r0 = window.devicePixelRatio || 1;
+        Object.defineProperty(window, "devicePixelRatio", { get: function () { return Math.min(r0, window.ARCADE.perf.dpr); }, configurable: true });
+      } catch (e) {}
+      var mm = window.matchMedia;
+      if (mm) try {
+        window.matchMedia = function (mq) {
+          if (/dppx|dpi|resolution/i.test(String(mq))) return { matches: false, media: String(mq), addListener: function () {}, removeListener: function () {}, addEventListener: function () {}, removeEventListener: function () {}, onchange: null, dispatchEvent: function () { return false; } };
+          return mm.call(window, mq);
+        };
+      } catch (e) {}
+    })();
+
+    (function () {
+      try {
+        var WP = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, "width");
+        var HP = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, "height");
+        window.ARCADE.perf.fact = resOn ? window.ARCADE.perf.res : 1;
+        if (WP) Object.defineProperty(HTMLCanvasElement.prototype, "width", {
+          configurable: true,
+          get: function () { return this.__arc ? this.__arc.w : WP.get.call(this); },
+          set: function (v) {
+            this.__arc = this.__arc || { w: WP.get.call(this) };
+            this.__arc.w = Number(v) || 0;
+            WP.set.call(this, Math.max(1, Math.round(this.__arc.w * (window.ARCADE.perf.fact || 1))));
+          }
+        });
+        if (HP) Object.defineProperty(HTMLCanvasElement.prototype, "height", {
+          configurable: true,
+          get: function () { return this.__arc ? this.__arc.h : HP.get.call(this); },
+          set: function (v) {
+            this.__arc = this.__arc || { h: HP.get.call(this) };
+            this.__arc.h = Number(v) || 0;
+            HP.set.call(this, Math.max(1, Math.round(this.__arc.h * (window.ARCADE.perf.fact || 1))));
+          }
+        });
+      } catch (e) {}
+    })();
+
     var CSS = "#unity-mobile-warning,#mobile-warning,.mobile-warning,#unity-warning{display:none!important}";
+    CSS += "html,body{width:100%!important;height:100%!important;height:100dvh!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#000!important;position:fixed!important;inset:0!important;touch-action:none!important;-webkit-touch-callout:none!important;-webkit-user-select:none!important;user-select:none!important;box-sizing:border-box!important}";
+    CSS += "#unity-container,.unity-desktop,.unity-mobile,#game-container,#gameContainer,#canvas-container,.webgl-content,#gameCanvas,#screen,#app,#root{max-width:100vw!important;max-height:100dvh!important;box-sizing:border-box!important}";
+    CSS += "#unity-container.unity-desktop,#unity-container{position:absolute!important;left:50%!important;top:50%!important;transform-origin:center center!important;margin:0!important}";
+    CSS += "canvas:not(.arcade-raw){max-width:100vw!important;max-height:100dvh!important;object-fit:contain!important;touch-action:none!important}";
+    CSS += "iframe{max-width:100vw!important;max-height:100dvh!important}";
+    CSS += "@media(max-width:900px),(pointer:coarse){#unity-footer{display:none!important}#unity-warning{display:none!important}}";
+    CSS += "#arcade-hud{position:fixed;z-index:2147483000;direction:ltr;font-family:system-ui,'Segoe UI',Roboto,Arial,sans-serif;color:#eef1f8;pointer-events:none;bottom:max(14px,env(safe-area-inset-bottom,14px));left:max(14px,env(safe-area-inset-left,14px))}";
+    CSS += "#arcade-hud *{box-sizing:border-box}";
+    CSS += "#ahud-tog{pointer-events:auto;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(9,12,20,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px -8px rgba(0,0,0,.6);transition:transform .15s}";
+    CSS += "#ahud-tog:hover{transform:scale(1.07)}#ahud-tog svg{width:20px;height:20px;fill:#a78bfa}";
+    CSS += "#ahud-panel{pointer-events:auto;margin-bottom:10px;width:250px;max-width:calc(100vw - 28px);border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(9,12,20,.93);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 18px 44px -14px rgba(0,0,0,.7);overflow:hidden}";
+    CSS += "#ahud-panel[hidden]{display:none}";
+    CSS += ".ahd-h{font-size:12.5px;font-weight:700;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.08);color:#a78bfa}";
+    CSS += ".ahd-row{display:flex;justify-content:space-between;gap:8px;padding:5px 12px;font-size:12px}";
+    CSS += ".ahd-row span{color:#9aa3b8}.ahd-row b{font-weight:600;text-align:left;direction:ltr;font-variant-numeric:tabular-nums}";
+    CSS += ".ahd-row b.g{color:#7ee7c0}.ahd-row b.y{color:#fde047}.ahd-row b.r{color:#f87171}";
+    CSS += ".ahd-sw{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 12px;font-size:12px;cursor:pointer;border-top:1px solid rgba(255,255,255,.05)}";
+    CSS += ".ahd-sw input{accent-color:#a78bfa;width:16px;height:16px;cursor:pointer}";
+    CSS += ".ahd-help{margin:6px 12px 10px;padding:8px 9px;border:1px dashed rgba(255,255,255,.14);border-radius:10px;font-size:10.5px;line-height:1.75;color:#9aa3b8}";
+    CSS += ".ahd-note{margin:0 12px 10px;font-size:10.5px;color:#7ee7c0;line-height:1.6}";
+    CSS += ".ahd-close{width:100%;border:0;border-top:1px solid rgba(255,255,255,.08);background:transparent;color:#8b93a7;padding:8px;font-size:11.5px;cursor:pointer}";
+    CSS += "#ahud-fs{position:fixed;z-index:2147483000;right:max(14px,env(safe-area-inset-right,14px));bottom:max(14px,env(safe-area-inset-bottom,14px));pointer-events:auto;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(9,12,20,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px -8px rgba(0,0,0,.6);transition:transform .15s;padding:0}";
+    CSS += "#ahud-fs:hover{transform:scale(1.07)}#ahud-fs svg{width:20px;height:20px;fill:none;stroke:#a78bfa;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}";
+    CSS += "canvas:fullscreen{object-fit:contain;background:#000}:fullscreen{background:#000}";
+    CSS += "#ahud-hint{position:fixed;z-index:2147483000;left:50%;top:14px;transform:translateX(-50%);pointer-events:none;background:rgba(9,12,20,.9);color:#cbd5e1;border:1px solid rgba(255,255,255,.14);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);padding:7px 13px;border-radius:999px;font:600 12px system-ui,-apple-system,sans-serif;box-shadow:0 10px 30px -10px rgba(0,0,0,.7);transition:opacity .45s ease;max-width:calc(100vw - 24px);text-align:center}";
+    CSS += "#ahud-hint[hidden]{display:none}";
+    CSS += "#arcade-rot-hint{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483500;background:rgba(15,23,42,.92);color:#f1f5f9;border:1px solid rgba(167,139,250,.45);box-shadow:0 10px 30px -5px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);padding:8px 16px;border-radius:999px;font:600 12.5px system-ui,-apple-system,sans-serif;display:flex;align-items:center;gap:10px;pointer-events:auto;cursor:pointer;white-space:nowrap;user-select:none}";
+    CSS += "#arcade-rot-hint[hidden]{display:none!important}";
+    CSS += "#arcade-rot-hint svg{width:18px;height:18px;fill:#a78bfa;flex:none}";
+    CSS += "#arcade-rot-hint .arh-x{background:none;border:none;color:#94a3b8;font-size:15px;margin-left:4px;cursor:pointer;padding:0 4px}";
     try { var s = document.createElement("style"); s.textContent = CSS; (document.head || document.documentElement).appendChild(s); } catch (e) {}
+
+    var hud = document.createElement("div");
+    hud.id = "arcade-hud";
+    hud.innerHTML = '<button id="ahud-tog" title="Device performance" aria-label="Device performance"><svg viewBox="0 0 24 24"><path d="M12 4L4 16h16z"/></svg></button>' +
+      '<div id="ahud-panel" hidden>' +
+      '<div class="ahd-h">Device performance in-game</div>' +
+      '<div class="ahd-row"><span>Frames (FPS)</span><b id="ahud-fps">—</b></div>' +
+      '<div class="ahd-row"><span>Frame time</span><b id="ahud-ms">—</b></div>' +
+      '<div class="ahd-row"><span>Memory (RAM)</span><b id="ahud-ram">—</b></div>' +
+      '<div class="ahd-row"><span>CPU cores</span><b id="ahud-cores">—</b></div>' +
+      '<div class="ahd-row"><span>GPU</span><b id="ahud-gpu" style="text-align:left;direction:ltr;white-space:normal;line-height:1.4">—</b></div>' +
+      '<label class="ahd-sw"><span>Performance mode</span><input type="checkbox" id="ahud-perf"></label>' +
+      '<label class="ahd-sw"><span>Reduced render resolution</span><input type="checkbox" id="ahud-res"></label>' +
+      '<div class="ahd-help">How to read this?<br>• FPS = frames per second; above 30 feels smooth.<br>• RAM under 4GB may crash the browser on heavy games.<br>• Fewer than 4 cores means slower performance.<br>• GPU = the graphics processor that renders the game.</div>' +
+      '<div class="ahd-note" id="ahud-note" hidden></div>' +
+      '<button class="ahd-close" id="ahud-close">Close</button>' +
+      '</div>';
+    try { document.documentElement.appendChild(hud); } catch (e) {}
+
+    (function () {
+      var tog = document.getElementById("ahud-tog");
+      var panel = document.getElementById("ahud-panel");
+      var pFps = document.getElementById("ahud-fps");
+      var pMs = document.getElementById("ahud-ms");
+      var pRam = document.getElementById("ahud-ram");
+      var pCores = document.getElementById("ahud-cores");
+      var pGpu = document.getElementById("ahud-gpu");
+      var cPerf = document.getElementById("ahud-perf");
+      var cRes = document.getElementById("ahud-res");
+      var eNote = document.getElementById("ahud-note");
+      var open = false, raf = 0, frames = 0, t0 = 0, gpuStr = "";
+
+      cPerf.checked = !!window.ARCADE.perf.on;
+      cRes.checked = !!window.ARCADE.perf.resOn;
+      if (RH.memory) pRam.textContent = RH.memory + " GB";
+      if (RH.cores) pCores.textContent = RH.cores + (RH.cores === 1 ? " core" : " cores");
+
+      function getGpu() {
+        if (gpuStr) return gpuStr;
+        try {
+          var c = document.createElement("canvas");
+          var gl = c.getContext("webgl2") || c.getContext("webgl");
+          if (gl) {
+            gpuStr = String(gl.getParameter(gl.RENDERER) || "").trim();
+            if (!gpuStr) gpuStr = String(gl.getParameter(gl.VENDOR) || "").trim();
+            try { gl.getExtension("WEBGL_lose_context") && gl.getExtension("WEBGL_lose_context").loseContext(); } catch (e2) {}
+            c.width = c.height = 0;
+          }
+        } catch (e) {}
+        return gpuStr || "N/A";
+      }
+
+      function paint(fps, ms) {
+        if (!open) return;
+        pMs.textContent = ms.toFixed(1) + " ms";
+        if (fps >= 50) pFps.textContent = Math.round(fps) + "";
+        else pFps.textContent = Math.round(fps) + "";
+        pFps.className = fps >= 45 ? "g" : (fps >= 25 ? "y" : "r");
+        pGpu.textContent = getGpu();
+      }
+
+      function loop() {
+        if (!open) return;
+        var now = performance.now();
+        frames++;
+        var dt = now - t0;
+        if (dt >= 600) {
+          var fps = (frames * 1000) / dt;
+          paint(fps, dt / frames);
+          frames = 0; t0 = now;
+        }
+        raf = requestAnimationFrame(loop);
+      }
+      function start() { if (open) return; open = true; frames = 0; t0 = performance.now(); paint(0, 0); raf = requestAnimationFrame(loop); }
+      function stop() { open = false; cancelAnimationFrame(raf); }
+
+      tog.addEventListener("click", function () {
+        if (open) { panel.hidden = true; stop(); }
+        else { panel.hidden = false; start(); }
+      });
+      var close = document.getElementById("ahud-close");
+      close.addEventListener("click", function () { panel.hidden = true; stop(); });
+
+      function note(t) {
+        eNote.hidden = !t;
+        if (t) eNote.textContent = t;
+      }
+
+      cPerf.addEventListener("change", function () {
+        window.ARCADE.perf.on = cPerf.checked;
+        try { localStorage.setItem("arcade.perf", cPerf.checked ? "1" : "0"); } catch (e) {}
+        if (cPerf.checked) {
+          try { Object.defineProperty(window, "devicePixelRatio", { get: function () { return window.ARCADE.perf.dpr; }, configurable: true }); } catch (e) {}
+          note("Performance mode takes full effect when the game is opened from the start — the current run resolution may not change immediately.");
+        } else {
+          try { delete window.devicePixelRatio; } catch (e) {}
+          note("");
+        }
+      });
+      cRes.addEventListener("change", function () {
+        window.ARCADE.perf.fact = cRes.checked ? window.ARCADE.perf.res : 1;
+        try { localStorage.setItem("arcade.res", cRes.checked ? "1" : "0"); } catch (e) {}
+        try {
+          Array.prototype.slice.call(document.querySelectorAll("canvas")).forEach(function (cv) {
+            if (cv.__arc) { var w = cv.__arc.w, h = cv.__arc.h; cv.width = w; cv.height = h; }
+          });
+        } catch (e2) {}
+        note(cRes.checked ? "Render resolution reduced to lower the GPU load." : "");
+      });
+    })();
+
+    (function () {
+      try {
+        var root = document.documentElement;
+        if (!(root.requestFullscreen || root.webkitRequestFullscreen)) return;
+        var btn = document.createElement("button");
+        btn.id = "ahud-fs";
+        btn.type = "button";
+        btn.title = "Fullscreen";
+        btn.setAttribute("aria-label", "Toggle fullscreen");
+        btn.setAttribute("aria-pressed", "false");
+        root.appendChild(btn);
+
+        var ICO_IN = '<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+        var ICO_OUT = '<svg viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>';
+
+        function fsEl() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+        function paint() {
+          var on = !!fsEl();
+          btn.innerHTML = on ? ICO_OUT : ICO_IN;
+          btn.title = on ? "Exit fullscreen" : "Fullscreen";
+          btn.setAttribute("aria-pressed", on ? "true" : "false");
+        }
+        function pickTarget(forAuto) {
+          function isAd(el) {
+            var s = (el.getAttribute && (el.getAttribute("src") || "")) + " " + (el.id || "") + " " + (el.name || "") + " " + (el.title || "") + " " + (el.className || "");
+            if (/aswift|adsbygoogle|google_ads|googlesyndication|doubleclick|adservice|adsystem|amazon-ads|taboola|outbrain|criteo|pubmatic|rubicon|openx|smartadserver|yieldmo|adform|advert|sponsor/i.test(s)) return true;
+            return /(^|[^a-z0-9])ads?([^a-z0-9]|$)/i.test(s);
+          }
+          function biggest(sel, skipAds) {
+            var b = null, ar = 0, ns = document.querySelectorAll(sel);
+            for (var i = 0; i < ns.length; i++) {
+              var el = ns[i];
+              var r = el.getBoundingClientRect();
+              if (r.width < 2 || r.height < 2) continue;
+              if (skipAds && isAd(el)) continue;
+              var a = r.width * r.height;
+              if (a > ar) { ar = a; b = el; }
+            }
+            return b;
+          }
+          var c = biggest("canvas", true);
+          if (c) return c;
+          var f = biggest("iframe,embed,object", true);
+          if (f) return f;
+          if (forAuto) return null;
+          var ids = ["app", "screen", "game", "game-container", "unity-canvas", "gamecanvas", "gameCanvas"];
+          for (var j = 0; j < ids.length; j++) {
+            var e = document.getElementById(ids[j]);
+            if (e && e.getClientRects().length) return e;
+          }
+          return document.documentElement;
+        }
+        function enter() {
+          var t = pickTarget();
+          var rf = t.requestFullscreen || t.webkitRequestFullscreen;
+          try { if (rf) { var p = rf.call(t); if (p && p.catch) p.catch(function () { try { root.requestFullscreen(); } catch (e) {} }); } }
+          catch (e) { try { root.requestFullscreen(); } catch (e2) {} }
+          setTimeout(paint, 350);
+        }
+        btn.addEventListener("click", function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          if (fsEl()) {
+            var ex = document.exitFullscreen || document.webkitExitFullscreen;
+            try { if (ex) ex.call(document); } catch (e) {}
+            setTimeout(paint, 350);
+            return;
+          }
+          enter();
+        });
+        ["fullscreenchange", "webkitfullscreenchange"].forEach(function (e) {
+          document.addEventListener(e, paint, false);
+        });
+        paint();
+
+        var hint = document.createElement("div");
+        hint.id = "ahud-hint";
+        hint.textContent = "Tap the game once to play fullscreen";
+        root.appendChild(hint);
+        var hintTimer = setTimeout(function () { hint.style.opacity = "0"; }, 5000);
+        function killHint() { clearTimeout(hintTimer); hint.style.opacity = "0"; }
+
+        var autoDone = false;
+        function onSurface(tg) {
+          var tag = (tg.tagName || "").toUpperCase();
+          if ((tg.closest && tg.closest("canvas")) || tag === "CANVAS" || tag === "IFRAME" || tag === "EMBED" || tag === "OBJECT" || tag === "VIDEO") return true;
+          var t = pickTarget(true);
+          if (!t) return false;
+          if (t === tg || t.contains(tg) || (tg.contains && tg.contains(t))) return true;
+          var c = t.parentElement;
+          if (c && c !== document.body && c !== document.documentElement && c.contains && c.contains(tg)) return true;
+          return false;
+        }
+        function autoFS(ev) {
+          if (autoDone) return;
+          var tg = ev && ev.target;
+          if (!tg) return;
+          if (tg.closest && tg.closest("#arcade-hud,#ahud-fs,#ahud-hint")) return;
+          if (!onSurface(tg)) return;
+          autoDone = true;
+          killHint();
+          if (fsEl()) return;
+          enter();
+        }
+        ["pointerup", "touchend", "keydown"].forEach(function (t) {
+          document.addEventListener(t, autoFS, true);
+        });
+      } catch (e) {}
+    })();
+
+    /* Mobile Responsive Autoscale Engine */
+    (function initMobileResponsiveEngine() {
+      var isTouch = (RH.touch > 0) || RH.coarse || RH.mobile || (window.innerWidth <= 900);
+
+      var rotHint = document.createElement("div");
+      rotHint.id = "arcade-rot-hint";
+      rotHint.hidden = true;
+      rotHint.innerHTML = '<svg viewBox="0 0 24 24"><path d="M16.48 2.52c3.27 1.55 5.61 4.72 5.97 8.48h1.5C23.44 5.46 18.77.92 12.96.06V2.08c2.93.38 5.48 1.94 7.03 4.22l-2.01 2.01h5.95V2.36l-2.02 2.02c-1.39-1.34-3.09-2.31-4.99-2.73-1.04-.23-2.13-.35-3.25-.35-4.42 0-8.24 2.5-10.15 6.16l1.79.89C9.02 4.41 12.24 2.22 15.96 2.22c.17 0 .35.01.52.03v.27zm-8.96 18.96c-3.27-1.55-5.61-4.72-5.97-8.48H0c.51 5.54 5.18 10.08 10.99 10.94v-2.02c-2.93-.38-5.48-1.94-7.03-4.22l2.01-2.01H0v5.95l2.02-2.02c1.39 1.34 3.09 2.31 4.99 2.73 1.04.23 2.13.35 3.25.35 4.42 0 8.24-2.5 10.15-6.16l-1.79-.89c-1.73 3.32-4.95 5.51-8.67 5.51-.17 0-.35-.01-.52-.03v-.27z"/></svg>' +
+        '<span>Rotate phone to landscape for fullscreen view 🔄</span>' +
+        '<button class="arh-x" aria-label="Dismiss">✕</button>';
+
+      function checkOrientation() {
+        var w = window.innerWidth || document.documentElement.clientWidth;
+        var h = window.innerHeight || document.documentElement.clientHeight;
+        var isPortrait = h > w && isTouch;
+        if (isPortrait && !rotHint._dismissed) {
+          rotHint.hidden = false;
+        } else {
+          rotHint.hidden = true;
+        }
+      }
+
+      rotHint.addEventListener("click", function(e) {
+        if (e.target && e.target.classList.contains("arh-x")) {
+          e.stopPropagation();
+          rotHint.hidden = true;
+          rotHint._dismissed = true;
+          return;
+        }
+        try {
+          var root = document.documentElement;
+          var rf = root.requestFullscreen || root.webkitRequestFullscreen;
+          if (rf) {
+            rf.call(root).then(function() {
+              if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock("landscape").catch(function() {});
+              }
+            }).catch(function() {});
+          }
+        } catch(err) {}
+        rotHint.hidden = true;
+        rotHint._dismissed = true;
+      });
+
+      function adaptGame() {
+        var winW = window.innerWidth || document.documentElement.clientWidth;
+        var winH = window.innerHeight || document.documentElement.clientHeight;
+        if (!winW || !winH) return;
+
+        checkOrientation();
+
+        // 1. Unity WebGL container & canvas
+        var uCont = document.getElementById("unity-container") || document.querySelector(".unity-desktop, .unity-mobile");
+        var canvas = document.querySelector("#unity-canvas, canvas#canvas, canvas.emscripten") || document.querySelector("canvas");
+
+        if (uCont && canvas) {
+          var natW = canvas.width || 960;
+          var natH = canvas.height || 600;
+          if (natW < 100) natW = 960;
+          if (natH < 100) natH = 600;
+
+          var ar = natW / natH;
+          var fitW = winW;
+          var fitH = fitW / ar;
+          if (fitH > winH) {
+            fitH = winH;
+            fitW = fitH * ar;
+          }
+          fitW = Math.floor(fitW);
+          fitH = Math.floor(fitH);
+
+          uCont.style.setProperty("width", fitW + "px", "important");
+          uCont.style.setProperty("height", fitH + "px", "important");
+          uCont.style.setProperty("max-width", "100vw", "important");
+          uCont.style.setProperty("max-height", "100dvh", "important");
+          uCont.style.setProperty("position", "absolute", "important");
+          uCont.style.setProperty("left", "50%", "important");
+          uCont.style.setProperty("top", "50%", "important");
+          uCont.style.setProperty("transform", "translate(-50%, -50%)", "important");
+          uCont.style.setProperty("margin", "0", "important");
+
+          canvas.style.setProperty("width", fitW + "px", "important");
+          canvas.style.setProperty("height", fitH + "px", "important");
+          canvas.style.setProperty("max-width", "100vw", "important");
+          canvas.style.setProperty("max-height", "100dvh", "important");
+          canvas.style.setProperty("display", "block", "important");
+          return;
+        }
+
+        // 2. Direct canvas without unity container
+        if (canvas) {
+          var natW = canvas.width || 960;
+          var natH = canvas.height || 600;
+          if (natW < 50 || natH < 50) { natW = 960; natH = 600; }
+          var ar = natW / natH;
+
+          var fitW = winW;
+          var fitH = fitW / ar;
+          if (fitH > winH) {
+            fitH = winH;
+            fitW = fitH * ar;
+          }
+          fitW = Math.floor(fitW);
+          fitH = Math.floor(fitH);
+
+          canvas.style.setProperty("width", fitW + "px", "important");
+          canvas.style.setProperty("height", fitH + "px", "important");
+          canvas.style.setProperty("max-width", "100vw", "important");
+          canvas.style.setProperty("max-height", "100dvh", "important");
+          canvas.style.setProperty("position", "absolute", "important");
+          canvas.style.setProperty("left", "50%", "important");
+          canvas.style.setProperty("top", "50%", "important");
+          canvas.style.setProperty("transform", "translate(-50%, -50%)", "important");
+          canvas.style.setProperty("margin", "0", "important");
+          canvas.style.setProperty("display", "block", "important");
+        }
+
+        // 3. Iframe games
+        var iframes = document.querySelectorAll("iframe");
+        for (var i = 0; i < iframes.length; i++) {
+          var ifr = iframes[i];
+          if (ifr.id !== "arcade-hud") {
+            ifr.style.setProperty("width", "100vw", "important");
+            ifr.style.setProperty("height", "100dvh", "important");
+            ifr.style.setProperty("max-width", "100vw", "important");
+            ifr.style.setProperty("max-height", "100dvh", "important");
+            ifr.style.setProperty("border", "none", "important");
+          }
+        }
+      }
+
+      // Prevent mobile touch bouncing / scroll-away
+      document.addEventListener("touchmove", function (e) {
+        if (e.target && (e.target.tagName === "CANVAS" || (e.target.closest && e.target.closest("#unity-container,#game-container,canvas")))) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+
+      window.addEventListener("resize", adaptGame);
+      window.addEventListener("orientationchange", function() {
+        setTimeout(adaptGame, 100);
+        setTimeout(adaptGame, 400);
+      });
+
+      function onReady() {
+        try {
+          if (!document.getElementById("arcade-rot-hint")) {
+            document.body.appendChild(rotHint);
+          }
+        } catch(e) {}
+        adaptGame();
+        try {
+          var obs = new MutationObserver(function() { adaptGame(); });
+          obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "width", "height", "class"] });
+        } catch(e) {}
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", onReady);
+      } else {
+        onReady();
+      }
+
+      adaptGame();
+      var ticks = 0;
+      var interval = setInterval(function() {
+        adaptGame();
+        ticks++;
+        if (ticks > 30) clearInterval(interval);
+      }, 350);
+    })();
   } catch (e) {}
 })();
