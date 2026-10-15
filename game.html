@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<script>
+/* Arcade cache guard — wipes Cache Storage / service workers and reloads the newest build. */
+(function(){var B="v31";
+function purge(){try{if(window.caches&&caches.keys)caches.keys().then(function(k){k.forEach(function(n){caches.delete(n);});});}catch(e){}
+try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister();});});}catch(e){}}
+function hardReload(){purge();var u=new URL(location.href);u.searchParams.set("nc",Date.now());location.replace(u.toString());}
+try{var prev=localStorage.getItem("arcade.build");localStorage.setItem("arcade.build",B);
+if(prev!==null&&prev!==B){hardReload();}}catch(e){}
+document.addEventListener("DOMContentLoaded",function(){var els=document.querySelectorAll("[data-purge]");
+for(var i=0;i<els.length;i++){els[i].addEventListener("click",function(e){e.preventDefault();hardReload();});}});
+window.arcadeClearCache=hardReload;
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c0c0d">
+<title id="page-title">Play — Arcade Games</title>
+<meta name="description" id="page-desc" content="Play browser games directly.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css?v=31">
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a class="logo" href="/" id="nav-logo">
+      <span>Arcade</span><em>GAMES</em><span class="logo-dot"></span>
+    </a>
+    <div class="nav-links">
+      <a href="/" id="nav-all">All Games</a>
+    </div>
+    <div class="nav-right">
+      <a class="btn" href="/" id="nav-back-btn">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        Back
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN GAME PAGE -->
+<main>
+  <div class="wrap">
+    <a class="back-link" href="/" id="back-link">
+      <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      All browser games
+    </a>
+
+    <div class="game-top">
+      <div>
+        <h1 class="game-h1" id="game-title">Loading…</h1>
+        <p class="game-by" id="game-by">—</p>
+      </div>
+      <div class="game-tools" id="game-tools">
+        <button class="btn" id="btn-source" title="Switch server (Direct vs Gateway)">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+          Server: Direct
+        </button>
+        <button class="btn" id="btn-theater" title="Theater Mode (Expand View)">
+          <svg viewBox="0 0 24 24"><path d="M19 6H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H5V8h14v8z"/></svg>
+          Theater
+        </button>
+        <button class="btn" id="btn-fullscreen" title="Fullscreen">
+          <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+          Fullscreen
+        </button>
+        <a class="btn" id="btn-ext" target="_blank" rel="noopener" title="Open in new tab">
+          <svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+          New tab
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLAYER -->
+  <div style="max-width:1360px;margin:0 auto;padding:0 var(--pad)">
+    <div class="player-wrap" id="player-wrap">
+
+      <!-- FLOATING EXIT BUTTON FOR THEATER MODE -->
+      <button class="player-float-exit" id="btn-float-exit" title="Exit theater mode">
+        <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        Exit Full View
+      </button>
+
+      <!-- POSTER (click to play) -->
+      <div class="poster" id="poster">
+        <div class="poster-bg" id="poster-bg-color" style="position:absolute;inset:0;"></div>
+        <div class="poster-gradient"></div>
+        <div class="poster-in">
+          <div class="poster-ring">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+          <div class="poster-title" id="poster-title">Play Game</div>
+          <div class="poster-sub" id="poster-sub">Click to start · loads in a few seconds</div>
+        </div>
+      </div>
+
+      <!-- IFRAME (hidden until poster clicked) -->
+      <iframe
+        class="player-frame"
+        id="player-frame"
+        allow="autoplay; fullscreen; gamepad; cross-origin-isolated; pointer-lock"
+        allowfullscreen
+        style="display:none"
+      ></iframe>
+
+      <!-- Loading indicator -->
+      <div class="player-loading hide" id="player-loading">
+        <div class="spin"></div>
+        Loading game…
+      </div>
+    </div>
+
+    <!-- Mobile orientation hint -->
+    <div class="orientation-hint" id="orientation-hint">
+      <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:var(--acc);flex:none"><path d="M16.48 2.52c3.27 1.55 5.61 4.72 5.97 8.48h1.5C23.44 4.84 18.29 0 12 0l-.66.03 3.81 3.81 1.33-1.32zm-10.96 18.96C2.25 19.93-.09 16.76-.45 13H-1.95C-1.44 19.16 3.71 24 10 24l.66-.03-3.81-3.81-1.33 1.32zM7 8v8h10V8H7z"/></svg>
+      <span>Rotate phone horizontally (Landscape) for the best full-screen arcade view!</span>
+    </div>
+
+    <!-- Play notes bar -->
+    <div class="play-notes" id="play-notes">
+      <button class="btn" id="btn-reload" title="Reload game" style="display:none">
+        <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        Reload
+      </button>
+      <div id="play-status" style="font-size:13px;color:var(--mute)"></div>
+    </div>
+  </div>
+
+  <!-- ABOUT + SIDE -->
+  <div class="below">
+    <div class="about-section" id="about-section">
+      <h2>About this game</h2>
+      <p id="about-text">—</p>
+      <div class="about-tags" id="about-tags"></div>
+    </div>
+    <div>
+      <div class="side-box">
+        <div class="k">Device tip</div>
+        <h2>Performance</h2>
+        <p>For best results, play in fullscreen mode. On mobile, tap fullscreen after the game loads for the smoothest experience.</p>
+        <p>If the game feels slow, close background apps and browser tabs before playing.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MORE GAMES -->
+  <div class="more-section">
+    <h2>More games</h2>
+    <div class="grid" id="more-grid"></div>
+  </div>
+</main>
+
+<footer>
+  <p>Arcade · Browser games gateway</p>
+  <p><a href="/">← Back to all games</a></p>
+  <p><button id="purge-cache" data-purge type="button" title="Clear all cached files and load the newest version" style="background:none;border:1px solid var(--acc);color:var(--acc);font:inherit;padding:6px 14px;border-radius:999px;cursor:pointer">↻ Clear cache &amp; update</button></p>
+</footer>
+
+<script src="/config.js?v=31"></script>
+<script>
+(function () {
+  /* ── helpers ── */
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const hash = s => { let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return Math.abs(h); };
+
+  const PALETTES = [
+    ['#7c5cff','#22d3ee'], ['#ff6b9d','#7c5cff'], ['#22d3ee','#0ea5e9'],
+    ['#f59e0b','#ef4444'], ['#10b981','#22d3ee'], ['#8b5cf6','#ec4899'],
+    ['#f43f5e','#fb923c'], ['#0ea5e9','#6366f1'], ['#14b8a6','#84cc16'],
+    ['#a855f7','#22d3ee'], ['#ef4444','#f97316'], ['#3b82f6','#06b6d4']
+  ];
+
+  const TAG_LABELS = { mobile: 'Runs on phone', multi: 'Multiplayer', heavy: 'Heavy' };
+  const TAG_DESC = {
+    mobile: 'This game is tagged as mobile-friendly and plays well on phone screens.',
+    multi: 'Multiplayer — play with friends in the same browser or online.',
+    heavy: 'This is a heavy game — it downloads large files and needs a good device.',
+  };
+
+  /* ── parse URL ── */
+  const params = new URLSearchParams(location.search);
+  const gParam = params.get('g') || params.get('id') || params.get('slug') || '';
+  const [gKey, ...pathParts] = gParam.split('::');
+  const gPath = pathParts.join('::');
+
+  /* ── clean any legacy resolution cutting flags ── */
+  try {
+    localStorage.removeItem("arcade.perf");
+    localStorage.removeItem("arcade.res");
+  } catch(e) {}
+
+  /* ── Direct origins: games load straight from source, no proxy ──
+     Every game's origin comes from games.json ("hosts" map). Hosts that
+     refuse to be framed (X-Frame-Options / CSP frame-ancestors) or are dead
+     can't be embedded directly, so they fall back to the gateway. ── */
+  const BLOCKED_HOSTS = new Set([
+    'crashbash.app',                      /* SAMEORIGIN + frame-ancestors 'self' */
+    'parkbaron.com',                      /* X-Frame-Options: DENY */
+    'ovz-game-production.up.railway.app',  /* X-Frame-Options: DENY */
+    'wasmarcade.com',                     /* SAMEORIGIN + CSP */
+    'quenq.com',                          /* CSP frame-ancestors 'self' */
+    'gta2.deloskiyt.pl',                  /* down (Cloudflare 525) */
+    'gta.deloskiyt.pl',                   /* replaced by migration page */
+    'pokemon-redstone.pages.dev'          /* unreachable */
+  ]);
+  let HOSTS = {};                          /* key -> bare host, filled from games.json */
+  let IMAGES = {};                         /* key::path -> thumb, filled from images.json */
+  let useDirect = true;
+
+  const BASE = (window.ARCADE && window.ARCADE.proxyBase)
+    ? String(window.ARCADE.proxyBase).replace(/\/$/, '')
+    : '';
+
+  function directHost(g) {
+    const h = HOSTS[g.key];
+    return h && !BLOCKED_HOSTS.has(h) ? h : null;
+  }
+
+  function gameUrl(g) {
+    const path = (g.path || '').replace(/^\//, '');
+    const host = directHost(g);
+    if (useDirect && host) {
+      return 'https://' + host + '/' + path;
+    }
+    const p = g.root
+      ? '/' + path.replace(/\/$/, '') + '/'
+      : '/play/' + g.key + '/' + path;
+    return BASE + p + (p.includes('?') ? '&' : '?') + 'v=29';
+  }
+
+  /* ── load games.json ── */
+  Promise.all([
+    fetch('/games.json').then(r => r.json()),
+    fetch('/images.json').then(r => r.json()).catch(() => ({}))
+  ]).then(([data, imgs]) => {
+    const GAMES = data.games || [];
+    HOSTS = data.hosts || data.origins || {};
+    IMAGES = imgs || {};
+    let game = null;
+    if (gKey && gPath) {
+      game = GAMES.find(g => g.key === gKey && g.path === gPath);
+    }
+    if (!game && gParam) {
+      const target = gParam.toLowerCase().replace(/[^a-z0-9]/g, '');
+      game = GAMES.find(g => {
+        const nameSlug = (g.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const pSlug = (g.path || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        return nameSlug === target || pSlug.includes(target) || (g.key + g.path).toLowerCase().includes(target);
+      });
+    }
+    if (!game && GAMES.length) {
+      game = GAMES[0];
+    }
+
+    if (!game) {
+      $('game-title').textContent = 'Game not found';
+      $('about-text').textContent = 'Could not find this game.';
+      return;
+    }
+
+    /* ── meta ── */
+    const tagList = game.tags || [];
+    const tagStr = tagList.map(t => TAG_LABELS[t] || t).join(' · ');
+    const title = game.name;
+    document.title = `Play ${title} in your browser — Arcade Games`;
+    $('page-title').textContent = `Play ${title} in your browser — Arcade Games`;
+    $('game-title').textContent = `Play ${title} in your browser`;
+    $('game-by').textContent = `${game.key.toUpperCase()} · ${tagStr || 'Browser game'}`;
+    $('poster-title').textContent = `Play ${title}`;
+    $('poster-sub').textContent = 'Click to start · game loads in a few seconds';
+
+    /* About */
+    $('about-text').textContent = `Play ${title} in your browser. No download, no install. Runs directly via the Arcade gateway.`;
+    const tagsEl = $('about-tags');
+    tagList.forEach(t => {
+      const el = document.createElement('span');
+      el.className = 'about-tag';
+      el.textContent = TAG_LABELS[t] || t;
+      tagsEl.appendChild(el);
+    });
+    if (tagList.length === 0) {
+      const el = document.createElement('span');
+      el.className = 'about-tag';
+      el.textContent = 'Browser game';
+      tagsEl.appendChild(el);
+    }
+
+    /* ── poster bg color / art ── */
+    const [c1, c2] = PALETTES[hash(game.key + game.name) % PALETTES.length];
+    const heroImg = IMAGES[game.key + '::' + game.path];
+    $('poster-bg-color').style.background = heroImg
+      ? `linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.55)), url("${heroImg}") center/cover no-repeat`
+      : `linear-gradient(135deg,${c1},${c2})`;
+
+    /* ── game URL & server toggle ── */
+    const sourceBtn = $('btn-source');
+    function updateSourceBtn() {
+      if (!sourceBtn) return;
+      if (directHost(game)) {
+        sourceBtn.style.display = 'inline-flex';
+        sourceBtn.innerHTML = `<svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg> ${useDirect ? 'Server: Direct' : 'Server: Gateway'}`;
+      } else {
+        sourceBtn.style.display = 'none';
+      }
+    }
+    updateSourceBtn();
+
+    if (sourceBtn) {
+      sourceBtn.addEventListener('click', () => {
+        useDirect = !useDirect;
+        updateSourceBtn();
+        const newUrl = gameUrl(game);
+        $('btn-ext').href = newUrl;
+        if (playing) {
+          $('player-loading').classList.remove('hide');
+          $('player-frame').src = newUrl;
+        }
+      });
+    }
+
+    $('btn-ext').href = gameUrl(game);
+
+    /* ── play on poster click ── */
+    let playing = false;
+    $('poster').addEventListener('click', () => {
+      if (playing) return;
+      playing = true;
+
+      /* Hide poster, show iframe + loading */
+      $('poster').style.transition = 'opacity .35s';
+      $('poster').style.opacity = '0';
+      setTimeout(() => { $('poster').style.display = 'none'; }, 350);
+
+      const frame = $('player-frame');
+      frame.style.display = 'block';
+      $('player-loading').classList.remove('hide');
+      $('btn-reload').style.display = '';
+
+      frame.src = gameUrl(game);
+      frame.onload = () => {
+        setTimeout(() => { $('player-loading').classList.add('hide'); }, 600);
+        $('play-status').textContent = `${title} is running`;
+      };
+
+      if (window.innerWidth <= 768) {
+        $('player-wrap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+
+    /* ── theater / expand mode ── */
+    function toggleTheater(force) {
+      const wrap = $('player-wrap');
+      const shouldExpand = typeof force === 'boolean' ? force : !wrap.classList.contains('is-expanded');
+      wrap.classList.toggle('is-expanded', shouldExpand);
+      document.body.classList.toggle('player-is-expanded', shouldExpand);
+      $('btn-theater').classList.toggle('pri', shouldExpand);
+      $('btn-theater').title = shouldExpand ? 'Exit Theater' : 'Theater Mode (Expand View)';
+    }
+
+    $('btn-theater').addEventListener('click', () => toggleTheater());
+    $('btn-float-exit').addEventListener('click', () => toggleTheater(false));
+
+    /* Escape key exits theater mode */
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && $('player-wrap').classList.contains('is-expanded')) {
+        toggleTheater(false);
+      }
+    });
+
+    /* ── fullscreen ── */
+    $('btn-fullscreen').addEventListener('click', () => {
+      const wrap = $('player-wrap');
+      const frame = $('player-frame');
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      } else {
+        /* Try fullscreen on iframe first for best results */
+        const target = playing ? (frame.requestFullscreen ? frame : wrap) : wrap;
+        (target.requestFullscreen || target.webkitRequestFullscreen || (() => {})).call(target)
+          .catch(() => {
+            (wrap.requestFullscreen || wrap.webkitRequestFullscreen || (() => {})).call(wrap);
+          });
+      }
+    });
+
+    /* ── reload ── */
+    $('btn-reload').addEventListener('click', () => {
+      const frame = $('player-frame');
+      $('player-loading').classList.remove('hide');
+      frame.src = gameUrl(game);
+    });
+
+    /* ── more games (random 6 excluding this one) ── */
+    const others = GAMES.filter(g => g !== game);
+    const shuffled = others.sort(() => Math.random() - .5).slice(0, 6);
+    $('more-grid').innerHTML = shuffled.map(g => {
+      const [a, b] = PALETTES[hash(g.key + g.name) % PALETTES.length];
+      const tags = (g.tags||[]).map(t =>
+        `<span class="tag ${t}">${TAG_LABELS[t]||t}</span>`
+      ).join('');
+      const init = esc((g.name||'?').trim().charAt(0).toUpperCase());
+      const href = `/game.html?g=${encodeURIComponent(g.key+'::'+g.path)}`;
+      const gimg = IMAGES[g.key + '::' + g.path];
+      const gmedia = gimg
+        ? `<img class="card-img" src="${esc(gimg)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
+        : `<span class="card-init">${init}</span>`;
+      return `<a class="card" href="${href}">
+        <div class="card-thumb">
+          <div class="card-thumb-bg" style="background:linear-gradient(135deg,${a},${b})"></div>
+          ${gmedia}
+          <div class="card-play-overlay">
+            <div class="play-ring"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-name">${esc(g.name)}</div>
+          <div class="card-tags">${tags}</div>
+          <div class="card-host">${esc(g.key)}</div>
+        </div>
+      </a>`;
+    }).join('');
+
+  }).catch(() => {
+    $('game-title').textContent = 'Error loading game';
+    $('about-text').textContent = 'Could not load the games list.';
+  });
+
+})();
+</script>
+<button id="purge-fab" data-purge type="button" aria-label="Clear cache and load the newest version" title="Clear cache &amp; load newest version"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A7.958 7.958 0 0012 4a8 8 0 108 8h-2a6 6 0 11-1.76-4.24L13 11h7V4l-2.35 2.35z"/></svg><span>Clear cache</span></button>
+</body>
+</html>
