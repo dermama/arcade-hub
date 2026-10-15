@@ -317,11 +317,6 @@ body.player-is-expanded {
   display: inline-flex;
 }
 
-/* On mobile use 4:3 or responsive */
-@media (max-width: 560px) {
-  .player-wrap:not(.is-expanded) { aspect-ratio: 4 / 3; }
-}
-
 /* Mobile orientation hint */
 .orientation-hint {
   display: none;
@@ -493,3 +488,17 @@ footer a:hover { color: #fff; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* ---- CLEAR-CACHE BUTTON (always visible) ---- */
+#purge-fab {
+  position: fixed; left: 16px; bottom: 16px; z-index: 9998;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-radius: 999px;
+  background: var(--acc); color: #0c0c0d; font-weight: 600; font-size: 13px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5), 0 0 0 1px rgba(0,0,0,.3);
+  transition: transform .15s ease, filter .15s ease;
+}
+#purge-fab svg { width: 15px; height: 15px; fill: currentColor; flex: none; }
+#purge-fab:hover { transform: translateY(-2px); filter: brightness(1.06); }
+#purge-fab:active { transform: translateY(0); }
+@media (max-width: 640px) { #purge-fab { padding: 9px 13px; font-size: 12px; } }

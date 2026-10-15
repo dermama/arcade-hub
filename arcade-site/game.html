@@ -3,14 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <script>
-/* Arcade cache guard — wipes Cache Storage / service workers and force-refreshes once when the build version changes. */
-(function(){var B="v28";var prev=null;
-try{prev=localStorage.getItem("arcade.build");localStorage.setItem("arcade.build",B);}catch(e){}
-function purge(cb){try{if(window.caches&&caches.keys)caches.keys().then(function(k){k.forEach(function(n){caches.delete(n);});});}catch(e){}
-try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister();});});}catch(e){}if(cb)cb();}
-if(prev!==null&&prev!==B){purge(function(){var u=new URL(location.href);u.searchParams.set("nc",Date.now());location.replace(u.toString());});}
-document.addEventListener("DOMContentLoaded",function(){var b=document.getElementById("purge-cache");if(!b)return;
-b.addEventListener("click",function(){try{localStorage.removeItem("arcade.build");}catch(e){}purge(function(){var u=new URL(location.href);u.searchParams.set("nc",Date.now());location.replace(u.toString());});});});
+/* Arcade cache guard — wipes Cache Storage / service workers and reloads the newest build. */
+(function(){var B="v29";
+function purge(){try{if(window.caches&&caches.keys)caches.keys().then(function(k){k.forEach(function(n){caches.delete(n);});});}catch(e){}
+try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister();});});}catch(e){}}
+function hardReload(){purge();var u=new URL(location.href);u.searchParams.set("nc",Date.now());location.replace(u.toString());}
+try{var prev=localStorage.getItem("arcade.build");localStorage.setItem("arcade.build",B);
+if(prev!==null&&prev!==B){hardReload();}}catch(e){}
+document.addEventListener("DOMContentLoaded",function(){var els=document.querySelectorAll("[data-purge]");
+for(var i=0;i<els.length;i++){els[i].addEventListener("click",function(e){e.preventDefault();hardReload();});}});
+window.arcadeClearCache=hardReload;
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -20,7 +22,7 @@ b.addEventListener("click",function(){try{localStorage.removeItem("arcade.build"
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=28">
+<link rel="stylesheet" href="/styles.css?v=29">
 </head>
 <body>
 
@@ -154,10 +156,10 @@ b.addEventListener("click",function(){try{localStorage.removeItem("arcade.build"
 <footer>
   <p>Arcade · Browser games gateway</p>
   <p><a href="/">← Back to all games</a></p>
-  <p><button id="purge-cache" type="button" title="Clear all cached files and load the newest version" style="background:none;border:1px solid currentColor;color:inherit;font:inherit;padding:4px 12px;border-radius:999px;cursor:pointer;opacity:.65">↻ Clear cache &amp; update</button></p>
+  <p><button id="purge-cache" data-purge type="button" title="Clear all cached files and load the newest version" style="background:none;border:1px solid var(--acc);color:var(--acc);font:inherit;padding:6px 14px;border-radius:999px;cursor:pointer">↻ Clear cache &amp; update</button></p>
 </footer>
 
-<script src="/config.js?v=28"></script>
+<script src="/config.js?v=29"></script>
 <script>
 (function () {
   /* ── helpers ── */
@@ -185,6 +187,12 @@ b.addEventListener("click",function(){try{localStorage.removeItem("arcade.build"
   const [gKey, ...pathParts] = gParam.split('::');
   const gPath = pathParts.join('::');
 
+  /* ── clean any legacy resolution cutting flags ── */
+  try {
+    localStorage.removeItem("arcade.perf");
+    localStorage.removeItem("arcade.res");
+  } catch(e) {}
+
   /* ── build game URL ── */
   const BASE = (window.ARCADE && window.ARCADE.proxyBase) ? window.ARCADE.proxyBase.replace(/\/$/, '') : '';
 
@@ -192,7 +200,8 @@ b.addEventListener("click",function(){try{localStorage.removeItem("arcade.build"
     const p = g.root
       ? '/' + g.path.replace(/\/$/, '') + '/'
       : '/play/' + g.key + '/' + g.path.replace(/^\//, '');
-    return BASE + p;
+    const sep = p.includes('?') ? '&' : '?';
+    return BASE + p + sep + 'v=29';
   }
 
   /* ── load games.json ── */
@@ -359,5 +368,6 @@ b.addEventListener("click",function(){try{localStorage.removeItem("arcade.build"
 
 })();
 </script>
+<button id="purge-fab" data-purge type="button" aria-label="Clear cache and load the newest version" title="Clear cache &amp; load newest version"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A7.958 7.958 0 0012 4a8 8 0 108 8h-2a6 6 0 11-1.76-4.24L13 11h7V4l-2.35 2.35z"/></svg><span>Clear cache</span></button>
 </body>
 </html>
