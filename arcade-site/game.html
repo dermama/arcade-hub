@@ -58,6 +58,10 @@ window.arcadeClearCache=hardReload;
         <p class="game-by" id="game-by">—</p>
       </div>
       <div class="game-tools" id="game-tools">
+        <button class="btn" id="btn-source" title="Switch server (Direct vs Gateway)">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+          Server: Direct
+        </button>
         <button class="btn" id="btn-theater" title="Theater Mode (Expand View)">
           <svg viewBox="0 0 24 24"><path d="M19 6H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H5V8h14v8z"/></svg>
           Theater
@@ -193,20 +197,48 @@ window.arcadeClearCache=hardReload;
     localStorage.removeItem("arcade.res");
   } catch(e) {}
 
-  /* ── build game URL ── */
-  const BASE = (window.ARCADE && window.ARCADE.proxyBase) ? window.ARCADE.proxyBase.replace(/\/$/, '') : '';
+  /* ── Direct origins: games load straight from source, no proxy ──
+     Every game's origin comes from games.json ("hosts" map). Hosts that
+     refuse to be framed (X-Frame-Options / CSP frame-ancestors) or are dead
+     can't be embedded directly, so they fall back to the gateway. ── */
+  const BLOCKED_HOSTS = new Set([
+    'crashbash.app',                      /* SAMEORIGIN + frame-ancestors 'self' */
+    'parkbaron.com',                      /* X-Frame-Options: DENY */
+    'ovz-game-production.up.railway.app',  /* X-Frame-Options: DENY */
+    'wasmarcade.com',                     /* SAMEORIGIN + CSP */
+    'quenq.com',                          /* CSP frame-ancestors 'self' */
+    'gta2.deloskiyt.pl',                  /* down (Cloudflare 525) */
+    'gta.deloskiyt.pl',                   /* replaced by migration page */
+    'pokemon-redstone.pages.dev'          /* unreachable */
+  ]);
+  let HOSTS = {};                          /* key -> bare host, filled from games.json */
+  let useDirect = true;
+
+  const BASE = (window.ARCADE && window.ARCADE.proxyBase)
+    ? String(window.ARCADE.proxyBase).replace(/\/$/, '')
+    : '';
+
+  function directHost(g) {
+    const h = HOSTS[g.key];
+    return h && !BLOCKED_HOSTS.has(h) ? h : null;
+  }
 
   function gameUrl(g) {
+    const path = (g.path || '').replace(/^\//, '');
+    const host = directHost(g);
+    if (useDirect && host) {
+      return 'https://' + host + '/' + path;
+    }
     const p = g.root
-      ? '/' + g.path.replace(/\/$/, '') + '/'
-      : '/play/' + g.key + '/' + g.path.replace(/^\//, '');
-    const sep = p.includes('?') ? '&' : '?';
-    return BASE + p + sep + 'v=29';
+      ? '/' + path.replace(/\/$/, '') + '/'
+      : '/play/' + g.key + '/' + path;
+    return BASE + p + (p.includes('?') ? '&' : '?') + 'v=29';
   }
 
   /* ── load games.json ── */
   fetch('/games.json').then(r => r.json()).then(data => {
     const GAMES = data.games || [];
+    HOSTS = data.hosts || data.origins || {};
     let game = null;
     if (gKey && gPath) {
       game = GAMES.find(g => g.key === gKey && g.path === gPath);
@@ -260,9 +292,33 @@ window.arcadeClearCache=hardReload;
     const [c1, c2] = PALETTES[hash(game.key + game.name) % PALETTES.length];
     $('poster-bg-color').style.background = `linear-gradient(135deg,${c1},${c2})`;
 
-    /* ── game URL ── */
-    const url = gameUrl(game);
-    $('btn-ext').href = url;
+    /* ── game URL & server toggle ── */
+    const sourceBtn = $('btn-source');
+    function updateSourceBtn() {
+      if (!sourceBtn) return;
+      if (directHost(game)) {
+        sourceBtn.style.display = 'inline-flex';
+        sourceBtn.innerHTML = `<svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg> ${useDirect ? 'Server: Direct' : 'Server: Gateway'}`;
+      } else {
+        sourceBtn.style.display = 'none';
+      }
+    }
+    updateSourceBtn();
+
+    if (sourceBtn) {
+      sourceBtn.addEventListener('click', () => {
+        useDirect = !useDirect;
+        updateSourceBtn();
+        const newUrl = gameUrl(game);
+        $('btn-ext').href = newUrl;
+        if (playing) {
+          $('player-loading').classList.remove('hide');
+          $('player-frame').src = newUrl;
+        }
+      });
+    }
+
+    $('btn-ext').href = gameUrl(game);
 
     /* ── play on poster click ── */
     let playing = false;
@@ -280,7 +336,7 @@ window.arcadeClearCache=hardReload;
       $('player-loading').classList.remove('hide');
       $('btn-reload').style.display = '';
 
-      frame.src = url;
+      frame.src = gameUrl(game);
       frame.onload = () => {
         setTimeout(() => { $('player-loading').classList.add('hide'); }, 600);
         $('play-status').textContent = `${title} is running`;
@@ -331,7 +387,7 @@ window.arcadeClearCache=hardReload;
     $('btn-reload').addEventListener('click', () => {
       const frame = $('player-frame');
       $('player-loading').classList.remove('hide');
-      frame.src = url;
+      frame.src = gameUrl(game);
     });
 
     /* ── more games (random 6 excluding this one) ── */
