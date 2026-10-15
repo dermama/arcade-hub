@@ -17,7 +17,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 const hash = s => { let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return Math.abs(h); };
 const gid = g => g.key + '::' + g.path;
 
-let GAMES = [], filter = 'all', query = '';
+let GAMES = [], IMAGES = {}, filter = 'all', query = '';
 
 /* ── game page URL ── */
 function gamePageUrl(g) {
@@ -30,14 +30,16 @@ function card(g, i) {
   const tags = (g.tags || []).map(t =>
     `<span class="tag ${t}">${TAG_LABELS[t] || t}</span>`
   ).join('');
-  const init = esc((g.name || '?').trim().charAt(0).toUpperCase());
   const href = gamePageUrl(g);
+  const img = IMAGES[gid(g)];
+  const media = img
+    ? `<img class="card-img" src="${esc(img)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
+    : `<span class="card-init">${esc((g.name || '?').trim().charAt(0).toUpperCase())}</span>`;
 
   return `<a class="card" href="${href}" style="animation-delay:${Math.min(i*18,480)}ms;opacity:0;transform:translateY(16px);animation:card-rise .45s cubic-bezier(.2,.8,.2,1) forwards">
     <div class="card-thumb">
-      <div class="card-thumb-bg" style="background:linear-gradient(135deg,${c1},${c2})">
-        <span class="card-init">${init}</span>
-      </div>
+      <div class="card-thumb-bg" style="background:linear-gradient(135deg,${c1},${c2})"></div>
+      ${media}
       <div class="card-play-overlay">
         <div class="play-ring">
           <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -100,10 +102,12 @@ document.getElementById('q').addEventListener('input', e => {
 });
 
 /* ── boot ── */
-fetch('/games.json')
-  .then(r => r.json())
-  .then(d => {
+Promise.all([
+  fetch('/games.json').then(r => r.json()),
+  fetch('/images.json').then(r => r.json()).catch(() => ({}))
+]).then(([d, imgs]) => {
     GAMES = d.games || [];
+    IMAGES = imgs || {};
     const countEl = document.getElementById('game-count');
     if (countEl) countEl.textContent = GAMES.length;
     document.getElementById('count').textContent = GAMES.length + ' games';

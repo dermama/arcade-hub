@@ -22,7 +22,7 @@ window.arcadeClearCache=hardReload;
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=29">
+<link rel="stylesheet" href="/styles.css?v=30">
 </head>
 <body>
 
@@ -163,7 +163,7 @@ window.arcadeClearCache=hardReload;
   <p><button id="purge-cache" data-purge type="button" title="Clear all cached files and load the newest version" style="background:none;border:1px solid var(--acc);color:var(--acc);font:inherit;padding:6px 14px;border-radius:999px;cursor:pointer">↻ Clear cache &amp; update</button></p>
 </footer>
 
-<script src="/config.js?v=29"></script>
+<script src="/config.js?v=30"></script>
 <script>
 (function () {
   /* ── helpers ── */
@@ -212,6 +212,7 @@ window.arcadeClearCache=hardReload;
     'pokemon-redstone.pages.dev'          /* unreachable */
   ]);
   let HOSTS = {};                          /* key -> bare host, filled from games.json */
+  let IMAGES = {};                         /* key::path -> thumb, filled from images.json */
   let useDirect = true;
 
   const BASE = (window.ARCADE && window.ARCADE.proxyBase)
@@ -236,9 +237,13 @@ window.arcadeClearCache=hardReload;
   }
 
   /* ── load games.json ── */
-  fetch('/games.json').then(r => r.json()).then(data => {
+  Promise.all([
+    fetch('/games.json').then(r => r.json()),
+    fetch('/images.json').then(r => r.json()).catch(() => ({}))
+  ]).then(([data, imgs]) => {
     const GAMES = data.games || [];
     HOSTS = data.hosts || data.origins || {};
+    IMAGES = imgs || {};
     let game = null;
     if (gKey && gPath) {
       game = GAMES.find(g => g.key === gKey && g.path === gPath);
@@ -288,9 +293,12 @@ window.arcadeClearCache=hardReload;
       tagsEl.appendChild(el);
     }
 
-    /* ── poster bg color ── */
+    /* ── poster bg color / art ── */
     const [c1, c2] = PALETTES[hash(game.key + game.name) % PALETTES.length];
-    $('poster-bg-color').style.background = `linear-gradient(135deg,${c1},${c2})`;
+    const heroImg = IMAGES[game.key + '::' + game.path];
+    $('poster-bg-color').style.background = heroImg
+      ? `linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.55)), url("${heroImg}") center/cover no-repeat`
+      : `linear-gradient(135deg,${c1},${c2})`;
 
     /* ── game URL & server toggle ── */
     const sourceBtn = $('btn-source');
@@ -400,11 +408,14 @@ window.arcadeClearCache=hardReload;
       ).join('');
       const init = esc((g.name||'?').trim().charAt(0).toUpperCase());
       const href = `/game.html?g=${encodeURIComponent(g.key+'::'+g.path)}`;
+      const gimg = IMAGES[g.key + '::' + g.path];
+      const gmedia = gimg
+        ? `<img class="card-img" src="${esc(gimg)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
+        : `<span class="card-init">${init}</span>`;
       return `<a class="card" href="${href}">
         <div class="card-thumb">
-          <div class="card-thumb-bg" style="background:linear-gradient(135deg,${a},${b})">
-            <span class="card-init">${init}</span>
-          </div>
+          <div class="card-thumb-bg" style="background:linear-gradient(135deg,${a},${b})"></div>
+          ${gmedia}
           <div class="card-play-overlay">
             <div class="play-ring"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
           </div>
