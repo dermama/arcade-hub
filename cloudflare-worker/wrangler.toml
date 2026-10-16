@@ -3,6 +3,10 @@ main = "src/worker.js"
 compatibility_date = "2026-01-01"
 workers_dev = true
 
+# Pin the deploy target to this account so `wrangler deploy` can never
+# silently hit a different Cloudflare account.
+account_id = "92153073c9d7da3ed773791463e5c244"
+
 [[rules]]
 type = "Text"
 globs = ["**/*.txt"]
