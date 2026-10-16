@@ -211,7 +211,7 @@ runTest('Cloudflare Worker has Edge Caching configuration enabled', () => {
 runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
   assert(workerCode.includes('Cache-Control", "public, max-age=604800, immutable"'), 'Static game assets must have immutable cache headers');
   assert(workerCode.includes('Cache-Control", "no-cache, no-store, must-revalidate"'), 'HTML documents must not be stale-cached');
-  assert(workerCode.includes('__shim.js?v=34'), 'Shim tag version must match latest build v34');
+  assert(workerCode.includes('__shim.js?v=35'), 'Shim tag version must match latest build v35');
 });
 
 // -------------------------------------------------------------------
@@ -220,7 +220,7 @@ runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
 console.log('\n▶ [Axis 7]: Testing Service Worker Offline & Tiered Caching Strategy...');
 
 runTest('Service Worker contains Tiered Cache configuration', () => {
-  assert(swCode.includes("VERSION = 'v34'"), 'Service worker should be synced to v34');
+  assert(swCode.includes("VERSION = 'v35'"), 'Service worker should be synced to v35');
   assert(swCode.includes('SHELL_CACHE'), 'App shell cache should be defined');
   assert(swCode.includes('GAME_CACHE'), 'Runtime game cache should be defined');
   assert(swCode.includes('IMG_CACHE'), 'Image cache should be defined');
@@ -242,19 +242,19 @@ runTest('Service Worker pre-caching is resilient to individual 404s', () => {
 // -------------------------------------------------------------------
 console.log('\n▶ [Axis 8, 10, 11]: Testing Client HTML/CSS Architecture & Lifecycle...');
 
-runTest('index.html registers Service Worker, preconnects, and uses unified v34 scripts', () => {
+runTest('index.html registers Service Worker, preconnects, and uses unified v35 scripts', () => {
   assert(indexHtml.includes('navigator.serviceWorker.register("/sw.js"'), 'SW registration must be present');
   assert(indexHtml.includes('rel="preconnect" href="https://gateway.arcade22cf.workers.dev"'), 'Gateway preconnect must be present');
-  assert(indexHtml.includes('/app.js?v=34'), 'app.js must be unified to v=34');
-  assert(indexHtml.includes('/config.js?v=34'), 'config.js must be unified to v=34');
+  assert(indexHtml.includes('/app.js?v=35'), 'app.js must be unified to v=35');
+  assert(indexHtml.includes('/config.js?v=35'), 'config.js must be unified to v=35');
 });
 
-runTest('game.html sandbox attributes, preconnect, memory cleanup, and v34 links', () => {
+runTest('game.html sandbox attributes, preconnect, memory cleanup, and v35 links', () => {
   assert(gameHtml.includes('sandbox="allow-scripts allow-same-origin allow-pointer-lock'), 'Sandbox attributes must be enforced on iframe');
   assert(gameHtml.includes("addEventListener('pagehide'"), 'Pagehide event listener must be present');
   assert(gameHtml.includes("frame.src = 'about:blank'"), 'Iframe must be blanked on pagehide to purge RAM/VRAM');
-  assert(gameHtml.includes('/config.js?v=34'), 'config.js in game.html must be unified to v=34');
-  assert(gameHtml.includes("v=34'"), 'game url query must be unified to v=34');
+  assert(gameHtml.includes('/config.js?v=35'), 'config.js in game.html must be unified to v=35');
+  assert(gameHtml.includes("v=35'"), 'game url query must be unified to v=35');
 });
 
 runTest('styles.css contains content-visibility: auto for smooth mobile card scrolling', () => {
@@ -305,6 +305,34 @@ runTest('Virtual Touch Gamepad & Input Passthrough (Patch 0110) integrated in ga
   assert(gameHtml.includes('id="btn-controls"'), 'btn-controls toggle button must exist');
   assert(stylesCss.includes('.virtual-gamepad'), 'virtual-gamepad styles must be defined');
   assert(shimCode.includes('arcade:input'), 'shim must handle arcade:input message passthrough');
+});
+
+runTest('Touch controls stay visible in fullscreen and are truly functional (v35)', () => {
+  // 1. Fullscreen must target the wrapper — fullscreening the bare iframe
+  //    hides the gamepad and exit button, which are siblings of that iframe.
+  assert(!gameHtml.includes('frame.requestFullscreen'), 'fullscreen must not target the iframe');
+  assert(gameHtml.includes('wrap.requestFullscreen'), 'fullscreen must target .player-wrap');
+  assert(stylesCss.includes('.player-wrap:fullscreen .virtual-gamepad'), 'gamepad must paint above the game in :fullscreen');
+  assert(stylesCss.includes(':-webkit-full-screen'), 'WebKit :fullscreen mirror must exist');
+  assert(stylesCss.includes('env(safe-area-inset-bottom'), 'gamepad must respect notch/home-indicator safe area');
+  assert(stylesCss.includes('.vg-pill'), 'Start/Select pill styles must exist');
+  assert(gameHtml.includes('class="vg-system"'), 'system (Start/Select) row must exist');
+
+  // 2. No stuck keys: pointer capture guarantees the keyup, and every key is
+  //    released if the page loses focus mid-press.
+  assert(gameHtml.includes('setPointerCapture'), 'pointer capture required so keyup always fires');
+  assert(gameHtml.includes('releaseAllButtons'), 'keys must be released on blur/visibilitychange');
+
+  // 3. Functional: Y must not be Escape (Escape exits fullscreen natively),
+  //    and controls must auto-show on touch and load through the Gateway so
+  //    the injected shim actually receives the input.
+  assert(gameHtml.includes('data-code="KeyY"'), 'Y button must send KeyY, not Escape');
+  assert(gameHtml.includes('if (COARSE) setGamepad(true)'), 'touch devices must get controls automatically');
+  assert(gameHtml.includes('ensureGatewayForControls'), 'controls must force a Gateway load so they work');
+  assert(!/let useDirect = true/.test(gameHtml), 'Direct must not be the default (it skips the shim)');
+  assert(shimCode.includes('"Enter": 9'), 'Start must map to gamepad button 9');
+  assert(shimCode.includes('"ShiftRight": 8'), 'Select must map to gamepad button 8');
+  assert(shimCode.includes('"KeyY": 89'), 'KEY_MAP must include KeyY (otherwise keyCode falls back to 32)');
 });
 
 // -------------------------------------------------------------------

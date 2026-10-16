@@ -311,7 +311,8 @@
         var KEY_MAP = {
           "ArrowUp": 38, "ArrowDown": 40, "ArrowLeft": 37, "ArrowRight": 39,
           "Space": 32, "ShiftLeft": 16, "ShiftRight": 16, "KeyE": 69, "KeyZ": 90,
-          "KeyX": 88, "KeyC": 67, "Escape": 27, "Enter": 13, "KeyW": 87, "KeyA": 65, "KeyS": 83, "KeyD": 68
+          "KeyX": 88, "KeyC": 67, "KeyY": 89, "Escape": 27, "Enter": 13,
+          "KeyW": 87, "KeyA": 65, "KeyS": 83, "KeyD": 68
         };
         window.addEventListener("message", function (ev) {
           if (!ev || !ev.data || ev.data.type !== "arcade:input") return;
@@ -368,7 +369,8 @@
 
         var BTN_MAP = {
           "Space": 0,
-          "ShiftLeft": 1, "ShiftRight": 1,
+          "ShiftLeft": 1,
+          "ShiftRight": 8, "Tab": 8,
           "KeyE": 2, "KeyX": 2,
           "Escape": 3, "KeyY": 3,
           "KeyQ": 4, "KeyW": 12, "ArrowUp": 12,

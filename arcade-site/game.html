@@ -5,7 +5,7 @@
 <script>
 /* Arcade Cache & Service Worker Manager */
 (function(){
-  var B = "v34";
+  var B = "v35";
   function purge(){
     try { if (window.caches && caches.keys) caches.keys().then(function(k){ k.forEach(function(n){ caches.delete(n); }); }); } catch(e){}
     try { if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) navigator.serviceWorker.getRegistrations().then(function(r){ r.forEach(function(s){ s.unregister(); }); }); } catch(e){}
@@ -41,7 +41,7 @@
 <link rel="preconnect" href="https://gateway.arcade22cf.workers.dev" crossorigin>
 <link rel="dns-prefetch" href="https://gateway.arcade22cf.workers.dev">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=34">
+<link rel="stylesheet" href="/styles.css?v=35">
 </head>
 <body>
 
@@ -153,14 +153,18 @@
           </div>
           <button class="vg-btn vg-down" type="button" data-key="ArrowDown" data-code="ArrowDown" aria-label="Down">▼</button>
         </div>
+        <div class="vg-system">
+          <button class="vg-btn vg-pill" type="button" data-key="ShiftRight" data-code="ShiftRight" aria-label="Select">SELECT</button>
+          <button class="vg-btn vg-pill" type="button" data-key="Enter" data-code="Enter" aria-label="Start">START</button>
+        </div>
         <div class="vg-actions">
           <div class="vg-act-row">
-            <button class="vg-btn vg-action" type="button" data-key="KeyE" data-code="KeyE">X</button>
-            <button class="vg-btn vg-action" type="button" data-key="Escape" data-code="Escape">Y</button>
+            <button class="vg-btn vg-action" type="button" data-key="KeyE" data-code="KeyE" aria-label="X">X</button>
+            <button class="vg-btn vg-action" type="button" data-key="KeyY" data-code="KeyY" aria-label="Y">Y</button>
           </div>
           <div class="vg-act-row">
-            <button class="vg-btn vg-action vg-pri" type="button" data-key="Space" data-code="Space">A</button>
-            <button class="vg-btn vg-action" type="button" data-key="ShiftLeft" data-code="ShiftLeft">B</button>
+            <button class="vg-btn vg-action vg-pri" type="button" data-key="Space" data-code="Space" aria-label="A">A</button>
+            <button class="vg-btn vg-action" type="button" data-key="ShiftLeft" data-code="ShiftLeft" aria-label="B">B</button>
           </div>
         </div>
       </div>
@@ -212,7 +216,7 @@
   <p><button id="purge-cache" data-purge type="button" title="Clear all cached files and load the newest version" style="background:none;border:1px solid var(--acc);color:var(--acc);font:inherit;padding:6px 14px;border-radius:999px;cursor:pointer">↻ Clear cache &amp; update</button></p>
 </footer>
 
-<script src="/config.js?v=34"></script>
+<script src="/config.js?v=35"></script>
 <script>
 (function () {
   /* ── helpers ── */
@@ -262,7 +266,11 @@
   ]);
   let HOSTS = {};                          /* key -> bare host, filled from games.json */
   let IMAGES = {};                         /* key::path -> thumb, filled from images.json */
-  let useDirect = true;
+  /* Touch devices default to the Gateway: only proxied pages get the injected
+     shim, which is what actually receives the virtual-gamepad input. Direct
+     loads are cross-origin, so the on-screen controls would be decorative. */
+  const COARSE = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints || 0) > 0;
+  let useDirect = !COARSE;
 
   const BASE = (window.ARCADE && window.ARCADE.proxyBase)
     ? String(window.ARCADE.proxyBase).replace(/\/$/, '')
@@ -282,7 +290,7 @@
     const p = g.root
       ? '/' + path.replace(/\/$/, '') + '/'
       : '/play/' + g.key + '/' + path;
-    return BASE + p + (p.includes('?') ? '&' : '?') + 'v=34';
+    return BASE + p + (p.includes('?') ? '&' : '?') + 'v=35';
   }
 
   /* ── load games.json ── */
@@ -402,6 +410,10 @@
       if (window.innerWidth <= 768) {
         $('player-wrap').scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
+
+      /* On phones/tablets the touch controls are the only way to play:
+         show them automatically (the manual toggle still wins). */
+      if (COARSE) setGamepad(true);
     });
 
     /* ── theater / expand mode ── */
@@ -426,15 +438,57 @@
 
     /* ── virtual gamepad controller (Touch-to-Input Passthrough) ── */
     const vg = $('virtual-gamepad');
-    $('btn-controls').addEventListener('click', () => {
-      const show = vg.hasAttribute('hidden');
+
+    /* Controls only work once the injected shim is present, i.e. when the game
+       is served through the Gateway (same-origin). If the current load is a
+       Direct cross-origin embed, switch it so the buttons are truly functional. */
+    function ensureGatewayForControls() {
+      if (!useDirect || !directHost(game)) return;
+      useDirect = false;
+      updateSourceBtn();
+      $('btn-ext').href = gameUrl(game);
+      if (playing) {
+        $('player-loading').classList.remove('hide');
+        $('player-frame').src = gameUrl(game);
+      }
+    }
+
+    const heldByPointer = new Map();
+    const heldButtons = new Set();
+
+    function pressButton(b) {
+      if (heldButtons.has(b)) return;
+      heldButtons.add(b);
+      b.classList.add('active');
+      if (navigator.vibrate) { try { navigator.vibrate(14); } catch (ve) {} }
+      dispatchGameInput('keydown', b.dataset.key, b.dataset.code);
+    }
+    function releaseButton(b) {
+      if (!heldButtons.has(b)) return;
+      heldButtons.delete(b);
+      b.classList.remove('active');
+      dispatchGameInput('keyup', b.dataset.key, b.dataset.code);
+    }
+    /* Always lift every key — e.g. when the app loses focus mid-press. */
+    function releaseAllButtons() {
+      heldByPointer.clear();
+      Array.from(heldButtons).forEach(releaseButton);
+    }
+
+    function setGamepad(show) {
       if (show) {
+        ensureGatewayForControls();
         vg.removeAttribute('hidden');
         $('btn-controls').classList.add('pri');
       } else {
+        releaseAllButtons();
         vg.setAttribute('hidden', '');
         $('btn-controls').classList.remove('pri');
       }
+    }
+
+    $('btn-controls').addEventListener('click', () => {
+      setGamepad(vg.hasAttribute('hidden'));
     });
 
     function dispatchGameInput(evName, key, code) {
@@ -447,44 +501,58 @@
       } catch (e) {}
     }
 
+    /* Each pointer owns one button (multi-touch dpad + action never collide) and
+       setPointerCapture guarantees the matching keyup, so keys can't get stuck. */
     vg.querySelectorAll('.vg-btn').forEach(b => {
-      const key = b.dataset.key;
-      const code = b.dataset.code;
-      const onDown = (e) => {
+      b.addEventListener('pointerdown', e => {
         e.preventDefault();
-        e.stopPropagation();
-        b.classList.add('active');
-        if (navigator.vibrate) {
-          try { navigator.vibrate(14); } catch (ve) {}
-        }
-        dispatchGameInput('keydown', key, code);
+        try { b.setPointerCapture(e.pointerId); } catch (ce) {}
+        heldByPointer.set(e.pointerId, b);
+        pressButton(b);
+      });
+      const up = e => {
+        const target = heldByPointer.get(e.pointerId) || b;
+        heldByPointer.delete(e.pointerId);
+        releaseButton(target);
       };
-      const onUp = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        b.classList.remove('active');
-        dispatchGameInput('keyup', key, code);
-      };
-      b.addEventListener('pointerdown', onDown);
-      b.addEventListener('pointerup', onUp);
-      b.addEventListener('pointercancel', onUp);
+      b.addEventListener('pointerup', up);
+      b.addEventListener('pointercancel', up);
+      b.addEventListener('lostpointercapture', up);
+      /* Fallback for engines without pointer capture: sliding off releases. */
+      b.addEventListener('pointerleave', e => {
+        if (heldByPointer.get(e.pointerId) === b) releaseButton(b);
+      });
+      b.addEventListener('contextmenu', e => e.preventDefault());
     });
 
-    /* ── fullscreen ── */
+    window.addEventListener('blur', releaseAllButtons);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAllButtons(); });
+
+    /* ── fullscreen ──
+       Fullscreen the WRAPPER, never the iframe: the iframe is only one child of
+       .player-wrap, so making it the fullscreen element would hide the touch
+       controls and the exit button that sit next to it. */
     $('btn-fullscreen').addEventListener('click', () => {
       const wrap = $('player-wrap');
-      const frame = $('player-frame');
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
-      } else {
-        /* Try fullscreen on iframe first for best results */
-        const target = playing ? (frame.requestFullscreen ? frame : wrap) : wrap;
-        (target.requestFullscreen || target.webkitRequestFullscreen || (() => {})).call(target)
-          .catch(() => {
-            (wrap.requestFullscreen || wrap.webkitRequestFullscreen || (() => {})).call(wrap);
-          });
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+      if (fsEl) {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (exit) { try { const p = exit.call(document); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+        return;
       }
+      const req = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+      if (!req) return;
+      try { const p = req.call(wrap); if (p && p.catch) p.catch(() => {}); } catch (e) {}
     });
+
+    function onFullscreenChange() {
+      const on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      $('btn-fullscreen').classList.toggle('pri', on);
+      $('btn-fullscreen').title = on ? 'Exit fullscreen' : 'Fullscreen';
+      if (on && COARSE) setGamepad(true);
+    }
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
     /* ── reload ── */
     $('btn-reload').addEventListener('click', () => {
