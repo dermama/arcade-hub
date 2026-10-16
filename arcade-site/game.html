@@ -5,7 +5,7 @@
 <script>
 /* Arcade Cache & Service Worker Manager */
 (function(){
-  var B = "v36";
+  var B = "v37";
   function purge(){
     try { if (window.caches && caches.keys) caches.keys().then(function(k){ k.forEach(function(n){ caches.delete(n); }); }); } catch(e){}
     try { if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) navigator.serviceWorker.getRegistrations().then(function(r){ r.forEach(function(s){ s.unregister(); }); }); } catch(e){}
@@ -41,7 +41,7 @@
 <link rel="preconnect" href="https://gateway.arcade22cf2.workers.dev" crossorigin>
 <link rel="dns-prefetch" href="https://gateway.arcade22cf2.workers.dev">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=36">
+<link rel="stylesheet" href="/styles.css?v=37">
 </head>
 <body>
 
@@ -80,6 +80,10 @@
         <button class="btn" id="btn-source" title="Switch server (Direct vs Gateway)">
           <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
           Server: Direct
+        </button>
+        <button class="btn" id="btn-cloud" title="Play in an isolated remote browser (Browser.lol)">
+          <svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0012 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 000 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>
+          <span id="cloud-label">Cloud</span>
         </button>
         <button class="btn" id="btn-theater" title="Theater Mode (Expand View)">
           <svg viewBox="0 0 24 24"><path d="M19 6H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H5V8h14v8z"/></svg>
@@ -124,12 +128,34 @@
         </div>
       </div>
 
+      <!-- CLOUD PLAY HUD BAR (Direct Browser.lol Integration) -->
+      <div class="cloud-hud" id="cloud-hud" style="display:none;">
+        <div class="cloud-hud-info">
+          <span class="cloud-hud-badge">☁️ السحابة نشطة (Browser.lol)</span>
+          <span class="cloud-hud-text">تم نسخ رابط اللعبة تلقائياً! الصقه في المتصفح السحابي واضغط Start Session للبدء فوراً.</span>
+        </div>
+        <div class="cloud-hud-actions">
+          <button class="btn btn-sm" id="btn-cloud-copy" type="button" title="نسخ رابط اللعبة مجدداً">
+            <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+            <span id="cloud-copy-label">نسخ الرابط</span>
+          </button>
+          <a class="btn btn-sm" id="btn-cloud-external" target="_blank" rel="noopener" title="فتح المتصفح السحابي في نافذة خارجية">
+            <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor"><path d="M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+            نافذة مستقلة
+          </a>
+          <button class="btn btn-sm" id="btn-cloud-return" type="button" title="العودة للعب المحلي المباشر">
+            <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+            لعب محلي
+          </button>
+        </div>
+      </div>
+
       <!-- IFRAME (hidden until poster clicked) -->
       <iframe
         class="player-frame"
         id="player-frame"
-        allow="autoplay; fullscreen; gamepad; cross-origin-isolated; pointer-lock"
-        sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-popups allow-downloads allow-modals"
+        allow="autoplay; fullscreen; gamepad; cross-origin-isolated; pointer-lock; clipboard-read; clipboard-write"
+        sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals"
         allowfullscreen
         loading="lazy"
         referrerpolicy="no-referrer-when-downgrade"
@@ -186,6 +212,8 @@
     </div>
   </div>
 
+  <div id="toast"></div>
+
   <!-- ABOUT + SIDE -->
   <div class="below">
     <div class="about-section" id="about-section">
@@ -216,7 +244,7 @@
   <p><button id="purge-cache" data-purge type="button" title="Clear all cached files and load the newest version" style="background:none;border:1px solid var(--acc);color:var(--acc);font:inherit;padding:6px 14px;border-radius:999px;cursor:pointer">↻ Clear cache &amp; update</button></p>
 </footer>
 
-<script src="/config.js?v=36"></script>
+<script src="/config.js?v=37"></script>
 <script>
 (function () {
   /* ── helpers ── */
@@ -290,7 +318,7 @@
     const p = g.root
       ? '/' + path.replace(/\/$/, '') + '/'
       : '/play/' + g.key + '/' + path;
-    return BASE + p + (p.includes('?') ? '&' : '?') + 'v=36';
+    return BASE + p + (p.includes('?') ? '&' : '?') + 'v=37';
   }
 
   /* ── load games.json ── */
@@ -372,6 +400,7 @@
 
     if (sourceBtn) {
       sourceBtn.addEventListener('click', () => {
+        if (cloudActive) { showToast('Stop cloud play to switch servers.'); return; }
         useDirect = !useDirect;
         updateSourceBtn();
         const newUrl = gameUrl(game);
@@ -416,6 +445,212 @@
       if (COARSE) setGamepad(true);
     });
 
+    /* ── Cloud Play (Browser.lol) ──
+       Launches an isolated cloud browser through the gateway (the API key stays
+       on the edge, never in this page) and streams its viewer into the same
+       iframe. Useful when a game refuses to embed or the device is too weak. */
+    /* ── Cloud Play (Browser.lol Direct Smart Bridge) ──
+       Launches an isolated cloud browser sandbox (Browser.lol) directly inside
+       our player frame, with automatic clipboard copy of the game URL and
+       seamless fallback to the gateway proxy if configured. */
+    const cloudBtn = $('btn-cloud');
+    const cloudLabel = $('cloud-label');
+    let cloudActive = false, cloudVmId = null, cloudShareUrl = null, cloudPoll = null;
+
+    function showToast(msg, warn) {
+      const t = $('toast');
+      if (!t) return;
+      t.textContent = msg;
+      t.classList.toggle('warn', !!warn);
+      t.classList.add('show');
+      clearTimeout(t._t);
+      t._t = setTimeout(() => t.classList.remove('show'), warn ? 6000 : 4000);
+    }
+
+    function getAbsoluteGameUrl() {
+      const rawHost = HOSTS[game.key];
+      const path = (game.path || '').replace(/^\//, '');
+      if (rawHost) {
+        return 'https://' + rawHost + '/' + path;
+      }
+      const local = gameUrl(game);
+      return local.startsWith('http') ? local : (window.location.origin + local);
+    }
+
+    function cloudSetActive(on) {
+      cloudActive = on;
+      if (cloudBtn) {
+        cloudBtn.classList.toggle('pri', on);
+        cloudBtn.title = on ? 'Back to local play' : 'Play in an isolated remote browser (Browser.lol)';
+      }
+      if (cloudLabel) cloudLabel.textContent = on ? 'Cloud: on' : 'Cloud';
+      $('btn-ext').href = on && cloudShareUrl ? cloudShareUrl : gameUrl(game);
+      /* The remote browser receives real keyboard/mouse; our injected gamepad
+         can't reach it, so on-screen controls are disabled while in cloud. */
+      if (on) {
+        setGamepad(false);
+        $('btn-controls').disabled = true;
+      } else {
+        $('btn-controls').disabled = false;
+        const hud = $('cloud-hud');
+        if (hud) hud.style.display = 'none';
+      }
+    }
+
+    function cloudStop(keepalive) {
+      if (cloudVmId && BASE) {
+        const id = cloudVmId;
+        try {
+          fetch(BASE + '/cloud/stop', {
+            method: 'POST', keepalive: !!keepalive,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+          }).catch(() => {});
+        } catch (e) {}
+      }
+      cloudVmId = null;
+      const hud = $('cloud-hud');
+      if (hud) hud.style.display = 'none';
+    }
+
+    function cloudErrorMessage(d) {
+      switch (d && d.status) {
+        case 'unconfigured': return 'Cloud play is not set up yet.';
+        case 'upgrade': return 'Cloud play needs a plan upgrade on the server.';
+        case 'insecure': return (d && d.message) || 'Too many cloud launches. Try again shortly.';
+        case 'denied': return (d && d.message) || 'This game cannot be launched in the cloud.';
+        default: return (d && d.message) || 'Cloud browser could not start.';
+      }
+    }
+
+    function pollCloud() {
+      if (cloudPoll) clearInterval(cloudPoll);
+      let tries = 0;
+      if (!cloudVmId || !BASE) return;
+      cloudPoll = setInterval(async () => {
+        tries++;
+        if (!cloudVmId) { clearInterval(cloudPoll); cloudPoll = null; return; }
+        try {
+          const r = await fetch(BASE + '/cloud/status?id=' + encodeURIComponent(cloudVmId));
+          const d = await r.json().catch(() => ({}));
+          const row = (d && d.data && d.data[0]) || {};
+          if (row.status === 'running') {
+            clearInterval(cloudPoll); cloudPoll = null;
+            $('player-loading').classList.add('hide');
+            $('play-status').textContent = `${title} is running (cloud)`;
+          } else if (row.status === 'error' || tries >= 14) {
+            clearInterval(cloudPoll); cloudPoll = null;
+            $('player-loading').classList.add('hide');
+          }
+        } catch (e) {}
+      }, 2500);
+    }
+
+    async function cloudStart() {
+      cloudBtn.disabled = true;
+      $('player-loading').classList.remove('hide');
+      $('play-status').textContent = 'Starting cloud browser…';
+
+      const targetUrl = getAbsoluteGameUrl();
+
+      // 1. Copy game URL to clipboard automatically
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(targetUrl).catch(() => {});
+      }
+
+      // 2. Form direct Browser.lol session URL with target game pre-filled
+      let shareUrl = 'https://browser.lol/en/create?url=' + encodeURIComponent(targetUrl);
+
+      // Optional gateway backend check if configured
+      if (BASE) {
+        try {
+          const r = await fetch(BASE + '/cloud/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: game.key, path: game.path })
+          });
+          const d = await r.json().catch(() => ({}));
+          if (d && d.status === 'ok' && d.shareUrl) {
+            cloudVmId = d.vmId || null;
+            shareUrl = d.shareUrl;
+            pollCloud();
+          }
+        } catch (e) {}
+      }
+
+      cloudShareUrl = shareUrl;
+      playing = true;
+      $('poster').style.display = 'none';
+      const frame = $('player-frame');
+      frame.style.display = 'block';
+      $('btn-reload').style.display = '';
+      cloudSetActive(true);
+      frame.src = shareUrl;
+
+      // 3. Show Cloud HUD & update external link
+      const hud = $('cloud-hud');
+      if (hud) {
+        hud.style.display = 'flex';
+        $('btn-cloud-external').href = shareUrl;
+      }
+
+      $('player-loading').classList.add('hide');
+      $('play-status').textContent = `${title} (Browser.lol Cloud)`;
+      showToast('🚀 تم تفعيل اللعب السحابي! تم نسخ رابط اللعبة إلى حافظتك، الصقه واضغط Start Session للبدء فوراً.');
+      cloudBtn.disabled = false;
+    }
+
+    // Cloud HUD actions
+    const btnCloudCopy = $('btn-cloud-copy');
+    if (btnCloudCopy) {
+      btnCloudCopy.addEventListener('click', () => {
+        const url = getAbsoluteGameUrl();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(() => {
+            const lbl = $('cloud-copy-label');
+            if (lbl) {
+              lbl.textContent = 'تم النسخ! ✓';
+              setTimeout(() => { lbl.textContent = 'نسخ الرابط'; }, 2000);
+            }
+            showToast('تم نسخ رابط اللعبة إلى الحافظة.');
+          });
+        }
+      });
+    }
+
+    const btnCloudReturn = $('btn-cloud-return');
+    if (btnCloudReturn) {
+      btnCloudReturn.addEventListener('click', () => {
+        if (cloudActive) {
+          cloudStop(false);
+          if (cloudPoll) { clearInterval(cloudPoll); cloudPoll = null; }
+          cloudShareUrl = null;
+          cloudSetActive(false);
+          $('player-loading').classList.remove('hide');
+          $('player-frame').src = gameUrl(game);
+          $('play-status').textContent = `${title} is running`;
+          showToast('تمت العودة إلى اللعب المحلي.');
+        }
+      });
+    }
+
+    if (cloudBtn) {
+      cloudBtn.addEventListener('click', () => {
+        if (cloudActive) {
+          cloudStop(false);
+          if (cloudPoll) { clearInterval(cloudPoll); cloudPoll = null; }
+          cloudShareUrl = null;
+          cloudSetActive(false);
+          $('player-loading').classList.remove('hide');
+          $('player-frame').src = gameUrl(game);
+          $('play-status').textContent = `${title} is running`;
+          showToast('Switched back to local play.');
+        } else {
+          cloudStart();
+        }
+      });
+    }
+
     /* ── theater / expand mode ── */
     function toggleTheater(force) {
       const wrap = $('player-wrap');
@@ -443,6 +678,7 @@
        is served through the Gateway (same-origin). If the current load is a
        Direct cross-origin embed, switch it so the buttons are truly functional. */
     function ensureGatewayForControls() {
+      if (cloudActive) return;
       if (!useDirect || !directHost(game)) return;
       useDirect = false;
       updateSourceBtn();
@@ -477,6 +713,7 @@
 
     function setGamepad(show) {
       if (show) {
+        if (cloudActive) return;
         ensureGatewayForControls();
         vg.removeAttribute('hidden');
         $('btn-controls').classList.add('pri');
@@ -575,11 +812,12 @@
     $('btn-reload').addEventListener('click', () => {
       const frame = $('player-frame');
       $('player-loading').classList.remove('hide');
-      frame.src = gameUrl(game);
+      frame.src = (cloudActive && cloudShareUrl) ? cloudShareUrl : gameUrl(game);
     });
 
     /* ── memory cleanup on navigation ── */
     window.addEventListener('pagehide', () => {
+      try { cloudStop(true); } catch (e) {}
       try {
         const frame = $('player-frame');
         if (frame && frame.src) frame.src = 'about:blank';

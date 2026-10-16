@@ -5,13 +5,120 @@ import CFG from "./games.json";
 const HOSTS = CFG.hosts;
 const ISO = new Set(CFG.iso || []);
 const ROOT = CFG.root_mounts || {};
-const SHIM_TAG = '<script src="/__shim.js?v=36"></script>';
+const SHIM_TAG = '<script src="/__shim.js?v=37"></script>';
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,HEAD,POST,PUT,OPTIONS",
   "Access-Control-Allow-Headers": "*",
 };
+
+/* ── Cloud Play (Browser.lol) ───────────────────────────────────────────────
+   Runs a game inside an isolated cloud browser on browser.lol and streams its
+   viewer back to the player. The API key is a Worker secret
+   (BROWSER_LOL_API_KEY) and never leaves the edge, so it cannot be scraped
+   from client code. Only games listed in games.json may be launched, which
+   keeps this route from becoming an open web proxy. A best-effort per-isolate
+   throttle caps runaway spending; Browser.lol's own running-session limit is
+   the hard cap. ──────────────────────────────────────────────────────────── */
+const BLOL = "https://api.browser.lol/v7";
+const CLOUD_CALLBACK = "https://arcade-hub-arcade-site.vercel.app/game.html";
+const CLOUD_HITS = new Map();
+
+function cloudAllowed(ip) {
+  const now = Date.now(), WINDOW = 60000, MAX = 4;
+  const rec = CLOUD_HITS.get(ip);
+  if (!rec || now - rec.t > WINDOW) {
+    CLOUD_HITS.set(ip, { t: now, n: 1 });
+    return true;
+  }
+  rec.n++;
+  if (CLOUD_HITS.size > 4000) CLOUD_HITS.clear();
+  return rec.n <= MAX;
+}
+
+function cloudHeaders(key) {
+  return { "Authorization": "Bearer " + key, "Content-Type": "application/json" };
+}
+
+/* Resolve a game key (+ optional path) to its real URL, allowlisted against
+   games.json. A client-supplied host is never trusted. */
+function resolveGameUrl(key, path) {
+  if (!key) return null;
+  const h = HOSTS[key];
+  if (!h) return null;
+  const games = CFG.games || [];
+  const g = path
+    ? games.find(x => x.key === key && x.path === path)
+    : games.find(x => x.key === key);
+  if (!g) return null;
+  return "https://" + h + "/" + String(g.path || "").replace(/^\/+/, "");
+}
+
+async function handleCloud(request, u, path, env) {
+  const key = env && env.BROWSER_LOL_API_KEY;
+  const send = (obj, status) => new Response(JSON.stringify(obj), {
+    status: status || 200,
+    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...CORS },
+  });
+
+  if (!key) return send({ status: "unconfigured", message: "Cloud play is not configured yet." });
+
+  if (path === "/cloud/quota") {
+    const r = await fetch(BLOL + "/user/quota", { headers: cloudHeaders(key) });
+    const d = await r.json().catch(() => ({ status: "error", message: "Bad upstream response" }));
+    return send(d);
+  }
+
+  if (path === "/cloud/status") {
+    const id = u.searchParams.get("id") || "";
+    const r = await fetch(BLOL + "/vm/data?id=" + encodeURIComponent(id), { headers: cloudHeaders(key) });
+    const d = await r.json().catch(() => ({ status: "error", message: "Bad upstream response" }));
+    return send(d);
+  }
+
+  if (path === "/cloud/stop") {
+    let body = {};
+    try { body = await request.json(); } catch (e) {}
+    if (!body.id) return send({ status: "denied", message: "Missing session id" }, 400);
+    const r = await fetch(BLOL + "/vm/remove", {
+      method: "POST", headers: cloudHeaders(key), body: JSON.stringify({ id: body.id }),
+    });
+    const d = await r.json().catch(() => ({ status: "error", message: "Bad upstream response" }));
+    return send(d);
+  }
+
+  if (path === "/cloud/start") {
+    if (request.method !== "POST") return send({ status: "denied", message: "Use POST" }, 405);
+    let body = {};
+    try { body = await request.json(); } catch (e) {}
+    const url = resolveGameUrl(body.key, body.path);
+    if (!url) return send({ status: "denied", message: "Unknown game" }, 400);
+    const ip = request.headers.get("cf-connecting-ip") || "anon";
+    if (!cloudAllowed(ip)) {
+      return send({ status: "insecure", reason: "rate_limited", message: "Too many cloud launches. Try again in a minute." }, 429);
+    }
+    const payload = {
+      browser: "chrome",
+      url,
+      shareLanguage: "en",
+      callbackUrl: env.CLOUD_CALLBACK || CLOUD_CALLBACK,
+      idempotencyKey: (body.key + "::" + (body.path || "")) + "@" + Math.floor(Date.now() / 120000),
+    };
+    const r = await fetch(BLOL + "/vm/create", {
+      method: "POST", headers: cloudHeaders(key), body: JSON.stringify(payload),
+    });
+    const d = await r.json().catch(() => ({ status: "error", message: "Bad upstream response" }));
+    return send({
+      status: d.status, message: d.message, reason: d.reason,
+      vmId: d.vmId, shareUrl: d.shareUrl, quota: d.quota,
+      location_applied: d.location_applied, location_reason: d.location_reason,
+    }, r.ok ? 200 : 502);
+  }
+
+  return send({ status: "denied", message: "Unknown cloud route" }, 404);
+}
+
 
 function isoHeaders(key) {
   const h = {
@@ -118,12 +225,22 @@ body{background:transparent;color:#eef1f8;font-family:system-ui,sans-serif;margi
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const u = new URL(request.url);
     const path = u.pathname;
 
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: CORS });
+    }
+
+    if (path.startsWith("/cloud/")) {
+      try {
+        return await handleCloud(request, u, path, env);
+      } catch (e) {
+        return new Response(JSON.stringify({ status: "error", message: "cloud proxy: " + e.message }), {
+          status: 502, headers: { "Content-Type": "application/json; charset=utf-8", ...CORS },
+        });
+      }
     }
 
     if (path === "/__shim.js") {

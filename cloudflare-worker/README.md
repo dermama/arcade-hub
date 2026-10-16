@@ -25,3 +25,27 @@ Put the Worker URL in `arcade-site/config.js`:
 ```js
 window.ARCADE = { proxyBase: 'https://gateway.<subdomain>.workers.dev' };
 ```
+
+## Cloud Play (Browser.lol)
+Runs a game inside an isolated cloud browser on [browser.lol](https://browser.lol)
+and streams its viewer back into the game page. Useful for games that refuse to
+embed and for weak devices. The API key stays on the edge — it is never sent to
+the browser.
+
+Set the secret once (never commit it):
+```bash
+wrangler secret put BROWSER_LOL_API_KEY     # from the Browser.lol "Agents / API keys" page
+wrangler secret put CLOUD_CALLBACK          # optional: URL the viewer returns to when leaving
+```
+
+Routes — every route degrades safely to `{"status":"unconfigured"}` when the key
+is absent, so the site keeps working without the feature:
+- `POST /cloud/start  {key, path}` → creates a session, returns `{status, vmId, shareUrl}`.
+- `GET  /cloud/status?id=<vmId>` → session state.
+- `POST /cloud/stop   {id}` → ends the session.
+- `GET  /cloud/quota` → account session quota.
+
+Only games present in `src/games.json` (matched by `key` + `path`) may be
+launched, and a per-IP throttle caps rapid launches, so the route can never be
+used as an open web proxy. The hard cap remains Browser.lol's own running-session
+limit.

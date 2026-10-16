@@ -211,7 +211,7 @@ runTest('Cloudflare Worker has Edge Caching configuration enabled', () => {
 runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
   assert(workerCode.includes('Cache-Control", "public, max-age=604800, immutable"'), 'Static game assets must have immutable cache headers');
   assert(workerCode.includes('Cache-Control", "no-cache, no-store, must-revalidate"'), 'HTML documents must not be stale-cached');
-  assert(workerCode.includes('__shim.js?v=36'), 'Shim tag version must match latest build v36');
+  assert(workerCode.includes('__shim.js?v=37'), 'Shim tag version must match latest build v37');
 });
 
 // -------------------------------------------------------------------
@@ -220,7 +220,7 @@ runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
 console.log('\n▶ [Axis 7]: Testing Service Worker Offline & Tiered Caching Strategy...');
 
 runTest('Service Worker contains Tiered Cache configuration', () => {
-  assert(swCode.includes("VERSION = 'v36'"), 'Service worker should be synced to v36');
+  assert(swCode.includes("VERSION = 'v37'"), 'Service worker should be synced to v37');
   assert(swCode.includes('SHELL_CACHE'), 'App shell cache should be defined');
   assert(swCode.includes('GAME_CACHE'), 'Runtime game cache should be defined');
   assert(swCode.includes('IMG_CACHE'), 'Image cache should be defined');
@@ -242,19 +242,19 @@ runTest('Service Worker pre-caching is resilient to individual 404s', () => {
 // -------------------------------------------------------------------
 console.log('\n▶ [Axis 8, 10, 11]: Testing Client HTML/CSS Architecture & Lifecycle...');
 
-runTest('index.html registers Service Worker, preconnects, and uses unified v36 scripts', () => {
+runTest('index.html registers Service Worker, preconnects, and uses unified v37 scripts', () => {
   assert(indexHtml.includes('navigator.serviceWorker.register("/sw.js"'), 'SW registration must be present');
   assert(indexHtml.includes('rel="preconnect" href="https://gateway.arcade22cf2.workers.dev"'), 'Gateway preconnect must be present');
-  assert(indexHtml.includes('/app.js?v=36'), 'app.js must be unified to v=36');
-  assert(indexHtml.includes('/config.js?v=36'), 'config.js must be unified to v=36');
+  assert(indexHtml.includes('/app.js?v=37'), 'app.js must be unified to v=37');
+  assert(indexHtml.includes('/config.js?v=37'), 'config.js must be unified to v=37');
 });
 
-runTest('game.html sandbox attributes, preconnect, memory cleanup, and v36 links', () => {
+runTest('game.html sandbox attributes, preconnect, memory cleanup, and v37 links', () => {
   assert(gameHtml.includes('sandbox="allow-scripts allow-same-origin allow-pointer-lock'), 'Sandbox attributes must be enforced on iframe');
   assert(gameHtml.includes("addEventListener('pagehide'"), 'Pagehide event listener must be present');
   assert(gameHtml.includes("frame.src = 'about:blank'"), 'Iframe must be blanked on pagehide to purge RAM/VRAM');
-  assert(gameHtml.includes('/config.js?v=36'), 'config.js in game.html must be unified to v=36');
-  assert(gameHtml.includes("v=36'"), 'game url query must be unified to v=36');
+  assert(gameHtml.includes('/config.js?v=37'), 'config.js in game.html must be unified to v=37');
+  assert(gameHtml.includes("v=37'"), 'game url query must be unified to v=37');
 });
 
 runTest('styles.css contains content-visibility: auto for smooth mobile card scrolling', () => {
@@ -307,7 +307,7 @@ runTest('Virtual Touch Gamepad & Input Passthrough (Patch 0110) integrated in ga
   assert(shimCode.includes('arcade:input'), 'shim must handle arcade:input message passthrough');
 });
 
-runTest('Touch controls stay visible in fullscreen and are truly functional (v36)', () => {
+runTest('Touch controls stay visible in fullscreen and are truly functional (v37)', () => {
   // 1. Fullscreen must target the wrapper — fullscreening the bare iframe
   //    hides the gamepad and exit button, which are siblings of that iframe.
   assert(!gameHtml.includes('frame.requestFullscreen'), 'fullscreen must not target the iframe');
@@ -379,6 +379,47 @@ runTest('Cloudflare Worker enforces Cross-Origin Isolation (COOP & COEP) for WAS
 runTest('AudioContext mobile hardware DAC alignment (48000Hz) configured in shim', () => {
   assert(shimCode.includes('sampleRate = 48000'), '48000Hz DAC alignment must be configured for mobile');
 });
+
+// -------------------------------------------------------------------
+// 7. Cloud Play (Browser.lol) Proxy & UI Verification
+// -------------------------------------------------------------------
+console.log('\n▶ [Cloud Play]: Testing Browser.lol proxy hardening and remote-play UI...');
+
+runTest('Worker exposes /cloud/* and keeps the Browser.lol key server-side only', () => {
+  assert(workerCode.includes('api.browser.lol/v7'), 'Worker must talk to the Browser.lol v7 API');
+  assert(workerCode.includes('BROWSER_LOL_API_KEY'), 'API key must come from the Worker secret env');
+  assert(workerCode.includes('/cloud/start'), 'Worker must expose a /cloud/start route');
+  assert(workerCode.includes('/cloud/status'), 'Worker must expose a /cloud/status route');
+  assert(workerCode.includes('/cloud/stop'), 'Worker must expose a /cloud/stop route');
+  assert(workerCode.includes('handleCloud'), 'Cloud proxy handler must exist');
+  assert(workerCode.includes('unconfigured'), 'Missing key must degrade safely to unconfigured, not crash');
+  // The key must never be echoed to the client.
+  assert(!/shareUrl[^\n]*Bearer/.test(workerCode), 'Response must not leak the bearer token');
+});
+
+runTest('Cloud launches are allowlisted to games.json (no open proxy, no client host)', () => {
+  assert(workerCode.includes('function resolveGameUrl'), 'resolveGameUrl allowlist resolver must exist');
+  assert(workerCode.includes('HOSTS[key]'), 'Only hosts from games.json may be resolved');
+  assert(workerCode.includes('games.find'), 'The exact key::path must exist before launching');
+  assert(workerCode.includes('cloudAllowed'), 'Best-effort per-IP throttle must exist');
+});
+
+runTest('game.html wires the Cloud button and remote-session lifecycle', () => {
+  assert(gameHtml.includes('id="btn-cloud"'), 'Cloud button must exist in the toolbar');
+  assert(gameHtml.includes('/cloud/start'), 'Page must call /cloud/start');
+  assert(gameHtml.includes('/cloud/status'), 'Page must poll /cloud/status');
+  assert(gameHtml.includes('/cloud/stop'), 'Page must call /cloud/stop to end the session');
+  assert(gameHtml.includes('cloudStart'), 'cloudStart handler must exist');
+  assert(gameHtml.includes('cloudStop'), 'cloudStop cleanup must exist');
+  assert(gameHtml.includes('cloudActive'), 'cloudActive state must gate local actions');
+  assert(gameHtml.includes('id="toast"'), 'Page must have a toast element for cloud feedback');
+});
+
+runTest('Cloud mode disables the local virtual gamepad (remote browser gets real input)', () => {
+  assert(gameHtml.includes("if (cloudActive) return;"), 'Controls must bail out while cloud is active');
+  assert(gameHtml.includes("$('btn-controls').disabled = true"), 'Local gamepad button must be disabled in cloud mode');
+});
+
 console.log('\n======================================================');
 console.log(`  RESULTS: ${passedTests} / ${totalTests} TESTS PASSED (100%)`);
 console.log('======================================================\n');
