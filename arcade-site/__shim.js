@@ -15,5 +15,8 @@
       } catch (e) {}
       window.__realHardware = RH;
     }
+    if ((RH.memory && RH.memory <= 4) || (RH.cores && RH.cores <= 4) || RH.mobile) {
+      document.documentElement.classList.add("arc-low");
+    }
   } catch (e) {}
 })();

@@ -33,6 +33,7 @@ const swPath = path.join(__dirname, '../arcade-site/sw.js');
 const indexPath = path.join(__dirname, '../arcade-site/index.html');
 const gamePath = path.join(__dirname, '../arcade-site/game.html');
 const cssPath = path.join(__dirname, '../arcade-site/styles.css');
+const profilerPath = path.join(__dirname, '../arcade-site/__shim.js');
 
 const shimCode = fs.readFileSync(shimPath, 'utf8');
 const workerCode = fs.readFileSync(workerPath, 'utf8');
@@ -40,6 +41,7 @@ const swCode = fs.readFileSync(swPath, 'utf8');
 const indexHtml = fs.readFileSync(indexPath, 'utf8');
 const gameHtml = fs.readFileSync(gamePath, 'utf8');
 const stylesCss = fs.readFileSync(cssPath, 'utf8');
+const profilerCode = fs.readFileSync(profilerPath, 'utf8');
 
 // -------------------------------------------------------------------
 // 1. Test Environment Simulation for shim.txt
@@ -209,7 +211,7 @@ runTest('Cloudflare Worker has Edge Caching configuration enabled', () => {
 runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
   assert(workerCode.includes('Cache-Control", "public, max-age=604800, immutable"'), 'Static game assets must have immutable cache headers');
   assert(workerCode.includes('Cache-Control", "no-cache, no-store, must-revalidate"'), 'HTML documents must not be stale-cached');
-  assert(workerCode.includes('__shim.js?v=33'), 'Shim tag version must match latest build v33');
+  assert(workerCode.includes('__shim.js?v=34'), 'Shim tag version must match latest build v34');
 });
 
 // -------------------------------------------------------------------
@@ -218,7 +220,7 @@ runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
 console.log('\n▶ [Axis 7]: Testing Service Worker Offline & Tiered Caching Strategy...');
 
 runTest('Service Worker contains Tiered Cache configuration', () => {
-  assert(swCode.includes("VERSION = 'v33'"), 'Service worker should be synced to v33');
+  assert(swCode.includes("VERSION = 'v34'"), 'Service worker should be synced to v34');
   assert(swCode.includes('SHELL_CACHE'), 'App shell cache should be defined');
   assert(swCode.includes('GAME_CACHE'), 'Runtime game cache should be defined');
   assert(swCode.includes('IMG_CACHE'), 'Image cache should be defined');
@@ -240,25 +242,32 @@ runTest('Service Worker pre-caching is resilient to individual 404s', () => {
 // -------------------------------------------------------------------
 console.log('\n▶ [Axis 8, 10, 11]: Testing Client HTML/CSS Architecture & Lifecycle...');
 
-runTest('index.html registers Service Worker, preconnects, and uses unified v33 scripts', () => {
+runTest('index.html registers Service Worker, preconnects, and uses unified v34 scripts', () => {
   assert(indexHtml.includes('navigator.serviceWorker.register("/sw.js"'), 'SW registration must be present');
   assert(indexHtml.includes('rel="preconnect" href="https://gateway.arcade22cf.workers.dev"'), 'Gateway preconnect must be present');
-  assert(indexHtml.includes('/app.js?v=33'), 'app.js must be unified to v=33');
-  assert(indexHtml.includes('/config.js?v=33'), 'config.js must be unified to v=33');
+  assert(indexHtml.includes('/app.js?v=34'), 'app.js must be unified to v=34');
+  assert(indexHtml.includes('/config.js?v=34'), 'config.js must be unified to v=34');
 });
 
-runTest('game.html sandbox attributes, preconnect, memory cleanup, and v33 links', () => {
+runTest('game.html sandbox attributes, preconnect, memory cleanup, and v34 links', () => {
   assert(gameHtml.includes('sandbox="allow-scripts allow-same-origin allow-pointer-lock'), 'Sandbox attributes must be enforced on iframe');
   assert(gameHtml.includes("addEventListener('pagehide'"), 'Pagehide event listener must be present');
   assert(gameHtml.includes("frame.src = 'about:blank'"), 'Iframe must be blanked on pagehide to purge RAM/VRAM');
-  assert(gameHtml.includes('/config.js?v=33'), 'config.js in game.html must be unified to v=33');
-  assert(gameHtml.includes("v=33'"), 'game url query must be unified to v=33');
+  assert(gameHtml.includes('/config.js?v=34'), 'config.js in game.html must be unified to v=34');
+  assert(gameHtml.includes("v=34'"), 'game url query must be unified to v=34');
 });
 
 runTest('styles.css contains content-visibility: auto for smooth mobile card scrolling', () => {
   assert(stylesCss.includes('content-visibility: auto;'), 'content-visibility must be set on .card');
   assert(stylesCss.includes('contain-intrinsic-size: 0 270px;'), 'contain-intrinsic-size must be specified accurately');
   assert(stylesCss.includes('contain: strict;'), '.player-frame must have strict containment');
+});
+
+runTest('R11: low-tier devices strip backdrop blur via tier-gated .arc-low', () => {
+  assert(stylesCss.includes('html.arc-low'), 'styles.css must define a .arc-low blur override');
+  assert(stylesCss.includes('backdrop-filter: none;'), 'styles.css must disable backdrop-filter on low tier');
+  assert(shimCode.includes('classList.add("arc-low")'), 'shim.txt must flag low-tier devices with .arc-low');
+  assert(profilerCode.includes('classList.add("arc-low")'), 'catalog profiler must flag low-tier devices with .arc-low');
 });
 
 // -------------------------------------------------------------------

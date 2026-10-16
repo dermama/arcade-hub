@@ -706,6 +706,7 @@
     window.ARCADE.ObjectPool = ObjectPool;
 
     var isLowTier = window.ARCADE.AdaptiveQuality && (window.ARCADE.AdaptiveQuality.tier === "ultra-low" || window.ARCADE.AdaptiveQuality.tier === "low");
+    if (isLowTier) { try { document.documentElement.classList.add("arc-low"); } catch (e) {} }
     var blurTog = isLowTier ? "" : "-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);";
     var blurPanel = isLowTier ? "" : "-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);";
 

@@ -786,3 +786,17 @@ footer { background: linear-gradient(180deg, transparent, rgba(0,0,0,.4)); }
 }
 .hero > *:not(.hero-code) { position: relative; z-index: 1; }
 @media (max-width: 640px) { .hero-code { opacity: .46; } }
+
+/* --- R11: low-tier devices drop backdrop blur (expensive compositing) --- */
+html.arc-low nav,
+html.arc-low .play-ring,
+html.arc-low .player-float-exit,
+html.arc-low .vg-btn,
+html.arc-low .filter-bar,
+html.arc-low .card-thumb::after {
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+html.arc-low nav { background: rgba(12,12,13,.96); }
+html.arc-low .play-ring { background: rgba(255,255,255,.18); }
+html.arc-low .vg-btn { background: rgba(18,20,29,.92); }
+html.arc-low .filter-bar { background: rgba(12,12,13,.96); }
