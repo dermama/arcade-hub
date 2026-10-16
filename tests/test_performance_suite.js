@@ -333,6 +333,7 @@ runTest('Touch controls stay visible in fullscreen and are truly functional (v35
   assert(shimCode.includes('"Enter": 9'), 'Start must map to gamepad button 9');
   assert(shimCode.includes('"ShiftRight": 8'), 'Select must map to gamepad button 8');
   assert(shimCode.includes('"KeyY": 89'), 'KEY_MAP must include KeyY (otherwise keyCode falls back to 32)');
+  assert(gameHtml.includes('VG_KEYCODES'), 'page must send keyCode itself so an older deployed shim still works');
 });
 
 // -------------------------------------------------------------------

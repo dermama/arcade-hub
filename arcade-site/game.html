@@ -491,9 +491,26 @@
       setGamepad(vg.hasAttribute('hidden'));
     });
 
+    /* Mirror of the shim's KEY_MAP. We send keyCode explicitly so the controls
+       stay correct even against an older deployed shim (it reads
+       ev.data.keyCode first, then falls back to its own KEY_MAP || 32). */
+    const VG_KEYCODES = {
+      ArrowUp: 38, ArrowDown: 40, ArrowLeft: 37, ArrowRight: 39,
+      Space: 32, ShiftLeft: 16, ShiftRight: 16, Enter: 13, Escape: 27,
+      KeyE: 69, KeyY: 89, KeyX: 88, KeyC: 67, KeyZ: 90,
+      KeyW: 87, KeyA: 65, KeyS: 83, KeyD: 68
+    };
+
     function dispatchGameInput(evName, key, code) {
       const frame = $('player-frame');
-      const payload = { type: 'arcade:input', event: evName, key: key, code: code };
+      /* keyCode 0 is falsy, so an unknown code still falls back inside the shim */
+      const payload = {
+        type: 'arcade:input',
+        event: evName,
+        key: key,
+        code: code,
+        keyCode: VG_KEYCODES[code] || 0
+      };
       try {
         if (frame && frame.contentWindow) {
           frame.contentWindow.postMessage(payload, '*');
