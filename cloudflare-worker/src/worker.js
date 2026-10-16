@@ -225,6 +225,9 @@ export default {
     if (ISO.has(key)) {
       out.set("Cross-Origin-Opener-Policy", "same-origin");
       out.set("Cross-Origin-Embedder-Policy", "require-corp");
+    } else {
+      out.set("Cross-Origin-Opener-Policy", "same-origin");
+      out.set("Cross-Origin-Embedder-Policy", "credentialless");
     }
 
     const lc = ctype.toLowerCase();

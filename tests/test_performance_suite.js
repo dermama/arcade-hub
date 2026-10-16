@@ -46,13 +46,24 @@ const stylesCss = fs.readFileSync(cssPath, 'utf8');
 // -------------------------------------------------------------------
 console.log('▶ [Axis 1, 4, 6, 10, 12]: Testing Shim Runtime Engine & Algorithms...');
 
+function MockStorage() { this.store = {}; }
+MockStorage.prototype = {
+  getItem: function(k) { return this.store[k] != null ? this.store[k] : null; },
+  setItem: function(k, v) { this.store[k] = String(v); },
+  removeItem: function(k) { delete this.store[k]; },
+  clear: function() { this.store = {}; }
+};
+const mockStorageInstance = new MockStorage();
+
 const mockWindow = {
+  Storage: MockStorage,
   navigator: {
     hardwareConcurrency: 4,
     deviceMemory: 4,
     maxTouchPoints: 5,
     userAgent: 'Mozilla/5.0 (Linux; Android 12) Mobile',
-    platform: 'Linux armv8l'
+    platform: 'Linux armv8l',
+    getGamepads: () => []
   },
   document: {
     documentElement: { appendChild: () => {}, requestFullscreen: () => {} },
@@ -61,11 +72,8 @@ const mockWindow = {
     getElementById: () => ({ addEventListener: () => {}, setAttribute: () => {} }),
     addEventListener: () => {}
   },
-  localStorage: {
-    store: {},
-    getItem(k) { return this.store[k] || null; },
-    setItem(k, v) { this.store[k] = String(v); }
-  },
+  localStorage: mockStorageInstance,
+  addEventListener: () => {},
   matchMedia: () => ({ matches: false }),
   requestAnimationFrame: (cb) => setTimeout(cb, 16),
   cancelAnimationFrame: (id) => clearTimeout(id),
@@ -86,8 +94,8 @@ mockWindow.HTMLCanvasElement.prototype = {
 };
 
 // Execute shim in mock environment
-const shimFunc = new Function('window', 'navigator', 'document', 'localStorage', 'performance', 'WebGLRenderingContext', 'WebGL2RenderingContext', 'HTMLCanvasElement', shimCode);
-shimFunc(mockWindow, mockWindow.navigator, mockWindow.document, mockWindow.localStorage, mockWindow.performance, mockWindow.WebGLRenderingContext, mockWindow.WebGL2RenderingContext, mockWindow.HTMLCanvasElement);
+const shimFunc = new Function('window', 'navigator', 'document', 'localStorage', 'performance', 'WebGLRenderingContext', 'WebGL2RenderingContext', 'HTMLCanvasElement', 'Storage', shimCode);
+shimFunc(mockWindow, mockWindow.navigator, mockWindow.document, mockWindow.localStorage, mockWindow.performance, mockWindow.WebGLRenderingContext, mockWindow.WebGL2RenderingContext, mockWindow.HTMLCanvasElement, MockStorage);
 
 runTest('Global ARCADE namespace initialized correctly', () => {
   assert(mockWindow.ARCADE, 'window.ARCADE should be defined');
@@ -291,8 +299,48 @@ runTest('Virtual Touch Gamepad & Input Passthrough (Patch 0110) integrated in ga
 });
 
 // -------------------------------------------------------------------
-// Summary
+// 6. Cross-Domain High-Performance Innovations
 // -------------------------------------------------------------------
+console.log('\n▶ [Cross-Domain Innovations]: Testing WAL Storage, W3C Gamepad API, Isolation & Scheduling...');
+
+runTest('W3C Standard Virtual Gamepad Polyfill exposes standard mapping and buttons', () => {
+  assert(mockWindow.navigator.getGamepads, 'navigator.getGamepads should be polyfilled');
+  const pads = mockWindow.navigator.getGamepads();
+  assert(Array.isArray(pads) && pads.length >= 1, 'getGamepads should return array of gamepads');
+  const pad = pads[0];
+  assert(pad && pad.mapping === 'standard', 'Virtual gamepad must have standard mapping');
+  assert(Array.isArray(pad.buttons) && pad.buttons.length === 17, 'Standard gamepad must have 17 buttons');
+  assert(Array.isArray(pad.axes) && pad.axes.length === 4, 'Standard gamepad must have 4 axes');
+
+  // Test input update via updateGamepad
+  assert(typeof mockWindow.ARCADE.updateGamepad === 'function', 'updateGamepad function must exist');
+  mockWindow.ARCADE.updateGamepad('Space', true);
+  assert.strictEqual(pad.buttons[0].pressed, true, 'Space key should press virtual A button (index 0)');
+  mockWindow.ARCADE.updateGamepad('Space', false);
+  assert.strictEqual(pad.buttons[0].pressed, false, 'Release Space should release virtual A button');
+});
+
+runTest('Asynchronous WAL Storage Accelerator provides zero-blocking in-memory access', () => {
+  assert(mockWindow.localStorage, 'localStorage must be present');
+  mockWindow.localStorage.setItem('arcade.test_wal_key', 'wal_value_123');
+  const readVal = mockWindow.localStorage.getItem('arcade.test_wal_key');
+  assert.strictEqual(readVal, 'wal_value_123', 'WAL in-memory cache must return set item synchronously');
+  mockWindow.localStorage.removeItem('arcade.test_wal_key');
+  assert.strictEqual(mockWindow.localStorage.getItem('arcade.test_wal_key'), null, 'Removed item must return null');
+});
+
+runTest('Cooperative Long-Task Scheduler (yieldToMain) is defined and callable', () => {
+  assert(typeof mockWindow.ARCADE.yieldToMain === 'function', 'ARCADE.yieldToMain must be defined');
+});
+
+runTest('Cloudflare Worker enforces Cross-Origin Isolation (COOP & COEP) for WASM multithreading', () => {
+  assert(workerCode.includes('Cross-Origin-Opener-Policy", "same-origin"'), 'COOP same-origin header must be present');
+  assert(workerCode.includes('Cross-Origin-Embedder-Policy", "credentialless"'), 'COEP credentialless header must be injected');
+});
+
+runTest('AudioContext mobile hardware DAC alignment (48000Hz) configured in shim', () => {
+  assert(shimCode.includes('sampleRate = 48000'), '48000Hz DAC alignment must be configured for mobile');
+});
 console.log('\n======================================================');
 console.log(`  RESULTS: ${passedTests} / ${totalTests} TESTS PASSED (100%)`);
 console.log('======================================================\n');

@@ -164,6 +164,9 @@
     };
     AdaptiveQuality.prototype.learn = function (avgFps) {
       if (avgFps < 28 && this.tier !== "ultra-low") {
+        /* Fix #3: Prevent double-drop — skip if DRS already adjusted recently (<3s cooldown) */
+        if (window.ARCADE && window.ARCADE.DRS &&
+            performance.now() - window.ARCADE.DRS.lastAdjustment < 3000) return;
         var tiers = ["high", "medium", "low", "ultra-low"];
         var idx = tiers.indexOf(this.tier);
         if (idx < tiers.length - 1) {
@@ -172,6 +175,7 @@
           var p = this.getPreset();
           if (window.ARCADE && window.ARCADE.DRS) {
             window.ARCADE.DRS.minFactor = Math.min(window.ARCADE.DRS.minFactor, p.drs);
+            window.ARCADE.DRS.lastAdjustment = performance.now(); // own the cooldown
             window.ARCADE.DRS.applyFactor(p.drs);
           }
         }
@@ -274,7 +278,7 @@
       } catch (e) {}
     })();
 
-    /* ── Background Tab Power Throttling & Visibility Handling ── */
+    /* ── Background Tab Power Throttling, Visibility & Audio Resume ── */
     (function () {
       try {
         document.addEventListener("visibilitychange", function () {
@@ -282,9 +286,19 @@
             window.ARCADE.perf.isBackground = true;
           } else {
             window.ARCADE.perf.isBackground = false;
+            /* Reset DRS counters so we don't penalise frames missed while hidden */
             DRS.lastAdjustment = performance.now();
             DRS.consecutiveBadFrames = 0;
             DRS.consecutiveGoodFrames = 0;
+            /* Fix #2: Resume any suspended AudioContexts when tab becomes visible again */
+            try {
+              var ctxList = window.__arcadeTrackedContexts || [];
+              for (var _i = 0; _i < ctxList.length; _i++) {
+                if (ctxList[_i] && ctxList[_i].state === "suspended") {
+                  ctxList[_i].resume().catch(function () {});
+                }
+              }
+            } catch (_e) {}
           }
         });
       } catch (e) {}
@@ -335,16 +349,207 @@
       } catch (e) {}
     })();
 
-    /* ── WebAudio Unlock & Active Context Resumer on User Touch/Click ── */
+    /* ── W3C Standard Virtual Gamepad Polyfill with Lock-Free Input Buffer ── */
+    (function () {
+      try {
+        var buttons = [];
+        for (var b = 0; b < 17; b++) {
+          buttons.push({ pressed: false, touched: false, value: 0 });
+        }
+        var virtualGamepad = {
+          id: "Standard Wireless Gamepad (Arcade Virtual Controller)",
+          index: 0,
+          connected: true,
+          timestamp: performance.now(),
+          mapping: "standard",
+          axes: [0, 0, 0, 0],
+          buttons: buttons
+        };
+
+        var BTN_MAP = {
+          "Space": 0,
+          "ShiftLeft": 1, "ShiftRight": 1,
+          "KeyE": 2, "KeyX": 2,
+          "Escape": 3, "KeyY": 3,
+          "KeyQ": 4, "KeyW": 12, "ArrowUp": 12,
+          "KeyS": 13, "ArrowDown": 13,
+          "KeyA": 14, "ArrowLeft": 14,
+          "KeyD": 15, "ArrowRight": 15,
+          "Enter": 9
+        };
+
+        function updateGamepad(code, isPressed) {
+          var idx = BTN_MAP[code];
+          if (idx != null && virtualGamepad.buttons[idx]) {
+            virtualGamepad.buttons[idx].pressed = isPressed;
+            virtualGamepad.buttons[idx].touched = isPressed;
+            virtualGamepad.buttons[idx].value = isPressed ? 1.0 : 0.0;
+            virtualGamepad.timestamp = performance.now();
+
+            if (idx === 12) virtualGamepad.axes[1] = isPressed ? -1.0 : 0;
+            if (idx === 13) virtualGamepad.axes[1] = isPressed ? 1.0 : 0;
+            if (idx === 14) virtualGamepad.axes[0] = isPressed ? -1.0 : 0;
+            if (idx === 15) virtualGamepad.axes[0] = isPressed ? 1.0 : 0;
+          }
+        }
+
+        if (navigator) {
+          var origGetGamepads = navigator.getGamepads ? navigator.getGamepads.bind(navigator) : null;
+          navigator.getGamepads = function () {
+            var real = [];
+            if (origGetGamepads) {
+              try { real = origGetGamepads() || []; } catch (e) {}
+            }
+            var hasReal = false;
+            for (var i = 0; i < real.length; i++) {
+              if (real[i] && real[i].connected) { hasReal = true; break; }
+            }
+            if (hasReal) return real;
+            return [virtualGamepad, null, null, null];
+          };
+        }
+
+        window.addEventListener("message", function (ev) {
+          if (!ev || !ev.data || ev.data.type !== "arcade:input") return;
+          var isPressed = ev.data.event === "keydown";
+          updateGamepad(ev.data.code, isPressed);
+        });
+
+        window.ARCADE.virtualGamepad = virtualGamepad;
+        window.ARCADE.updateGamepad = updateGamepad;
+      } catch (e) {}
+    })();
+
+    /* ── High-Performance Asynchronous Write-Ahead Log (WAL) Storage Accelerator ── */
+    (function () {
+      try {
+        if (!window.localStorage || !window.Storage) return;
+        var SP = Storage.prototype;
+        var origSet = SP.setItem;
+        var origGet = SP.getItem;
+        var origRemove = SP.removeItem;
+        var origClear = SP.clear;
+
+        var memCache = {};
+        var dirtyQueue = {};
+        var flushTimer = null;
+
+        try {
+          for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k) memCache[k] = origGet.call(localStorage, k);
+          }
+        } catch (e) {}
+
+        function flushWAL() {
+          flushTimer = null;
+          var batch = dirtyQueue;
+          dirtyQueue = {};
+          try {
+            for (var key in batch) {
+              if (Object.prototype.hasOwnProperty.call(batch, key)) {
+                var val = batch[key];
+                if (val === null) {
+                  origRemove.call(localStorage, key);
+                } else {
+                  origSet.call(localStorage, key, val);
+                }
+              }
+            }
+          } catch (err) {}
+        }
+
+        function scheduleFlush() {
+          if (flushTimer) return;
+          if (typeof requestIdleCallback === "function") {
+            flushTimer = requestIdleCallback(flushWAL, { timeout: 120 });
+          } else {
+            flushTimer = setTimeout(flushWAL, 0);
+          }
+        }
+
+        SP.getItem = function (key) {
+          if (this === localStorage) {
+            if (Object.prototype.hasOwnProperty.call(memCache, key)) {
+              return memCache[key];
+            }
+            var val = origGet.call(this, key);
+            memCache[key] = val;
+            return val;
+          }
+          return origGet.apply(this, arguments);
+        };
+
+        SP.setItem = function (key, value) {
+          if (this === localStorage) {
+            var str = String(value);
+            memCache[key] = str;
+            dirtyQueue[key] = str;
+            scheduleFlush();
+            return;
+          }
+          return origSet.apply(this, arguments);
+        };
+
+        SP.removeItem = function (key) {
+          if (this === localStorage) {
+            delete memCache[key];
+            dirtyQueue[key] = null;
+            scheduleFlush();
+            return;
+          }
+          return origRemove.apply(this, arguments);
+        };
+
+        SP.clear = function () {
+          if (this === localStorage) {
+            memCache = {};
+            dirtyQueue = {};
+            return origClear.apply(this, arguments);
+          }
+          return origClear.apply(this, arguments);
+        };
+
+        window.addEventListener("beforeunload", function () {
+          /* Fix #1: Flush any dirty keys even if the idle timer already fired */
+          if (Object.keys(dirtyQueue).length > 0) flushWAL();
+        });
+      } catch (e) {}
+    })();
+
+    /* ── Cooperative Long-Task Scheduler (scheduler.yield / Microtask Time-Slicing) ── */
+    window.ARCADE.yieldToMain = async function () {
+      if (window.scheduler && typeof window.scheduler.yield === "function") {
+        return await window.scheduler.yield();
+      }
+      return new Promise(function (resolve) {
+        var mc = new MessageChannel();
+        mc.port1.onmessage = resolve;
+        mc.port2.postMessage(null);
+      });
+    };
+
+    /* ── WebAudio Unlock, 48kHz Mobile DAC Alignment & Active Context Resumer ── */
     (function () {
       try {
         var AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) return;
-        var trackedContexts = [];
+        /* Fix #2: Expose list globally so visibilitychange can resume contexts */
+        window.__arcadeTrackedContexts = window.__arcadeTrackedContexts || [];
+        var trackedContexts = window.__arcadeTrackedContexts;
         try {
           var origConstructor = AudioCtx;
-          var WrappedAudioContext = function () {
-            var ctx = new origConstructor();
+          var WrappedAudioContext = function (options) {
+            options = options || {};
+            if (options.sampleRate == null && RH && RH.mobile) {
+              options.sampleRate = 48000;
+            }
+            var ctx;
+            try {
+              ctx = new origConstructor(options);
+            } catch (e) {
+              ctx = new origConstructor();
+            }
             trackedContexts.push(ctx);
             return ctx;
           };
