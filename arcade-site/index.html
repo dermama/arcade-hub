@@ -3,16 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <script>
-/* Arcade cache guard — wipes Cache Storage / service workers and reloads the newest build. */
-(function(){var B="v31";
-function purge(){try{if(window.caches&&caches.keys)caches.keys().then(function(k){k.forEach(function(n){caches.delete(n);});});}catch(e){}
-try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister();});});}catch(e){}}
-function hardReload(){purge();var u=new URL(location.href);u.searchParams.set("nc",Date.now());location.replace(u.toString());}
-try{var prev=localStorage.getItem("arcade.build");localStorage.setItem("arcade.build",B);
-if(prev!==null&&prev!==B){hardReload();}}catch(e){}
-document.addEventListener("DOMContentLoaded",function(){var els=document.querySelectorAll("[data-purge]");
-for(var i=0;i<els.length;i++){els[i].addEventListener("click",function(e){e.preventDefault();hardReload();});}});
-window.arcadeClearCache=hardReload;
+/* Arcade Cache & Service Worker Manager */
+(function(){
+  var B = "v33";
+  function purge(){
+    try { if (window.caches && caches.keys) caches.keys().then(function(k){ k.forEach(function(n){ caches.delete(n); }); }); } catch(e){}
+    try { if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) navigator.serviceWorker.getRegistrations().then(function(r){ r.forEach(function(s){ s.unregister(); }); }); } catch(e){}
+  }
+  function hardReload(){ purge(); var u = new URL(location.href); u.searchParams.set("nc", Date.now()); location.replace(u.toString()); }
+  try {
+    var prev = localStorage.getItem("arcade.build");
+    localStorage.setItem("arcade.build", B);
+    if (prev !== null && prev !== B) { purge(); }
+  } catch(e){}
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function() {
+      navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(function(){});
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    var els = document.querySelectorAll("[data-purge]");
+    for (var i = 0; i < els.length; i++) {
+      els[i].addEventListener("click", function(e){ e.preventDefault(); hardReload(); });
+    }
+  });
+  window.arcadeClearCache = hardReload;
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -21,8 +38,10 @@ window.arcadeClearCache=hardReload;
 <meta name="description" content="A hand-picked collection of browser games. Play directly on phone or computer — no download, no install.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://gateway.arcade22cf.workers.dev" crossorigin>
+<link rel="dns-prefetch" href="https://gateway.arcade22cf.workers.dev">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=32">
+<link rel="stylesheet" href="/styles.css?v=33">
 </head>
 <body>
 
@@ -78,9 +97,9 @@ window.arcadeClearCache=hardReload;
 
 <div id="toast"></div>
 
-<script src="/__shim.js?v=31"></script>
-<script src="/config.js?v=31"></script>
-<script src="/app.js?v=31"></script>
+<script src="/__shim.js?v=33"></script>
+<script src="/config.js?v=33"></script>
+<script src="/app.js?v=33"></script>
 <button id="purge-fab" data-purge type="button" aria-label="Clear cache and load the newest version" title="Clear cache &amp; load newest version"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A7.958 7.958 0 0012 4a8 8 0 108 8h-2a6 6 0 11-1.76-4.24L13 11h7V4l-2.35 2.35z"/></svg><span>Clear cache</span></button>
 <script>
 /* Hero code-video — the catalogue replayed as a binary/dot-matrix film.

@@ -3,16 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <script>
-/* Arcade cache guard — wipes Cache Storage / service workers and reloads the newest build. */
-(function(){var B="v31";
-function purge(){try{if(window.caches&&caches.keys)caches.keys().then(function(k){k.forEach(function(n){caches.delete(n);});});}catch(e){}
-try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister();});});}catch(e){}}
-function hardReload(){purge();var u=new URL(location.href);u.searchParams.set("nc",Date.now());location.replace(u.toString());}
-try{var prev=localStorage.getItem("arcade.build");localStorage.setItem("arcade.build",B);
-if(prev!==null&&prev!==B){hardReload();}}catch(e){}
-document.addEventListener("DOMContentLoaded",function(){var els=document.querySelectorAll("[data-purge]");
-for(var i=0;i<els.length;i++){els[i].addEventListener("click",function(e){e.preventDefault();hardReload();});}});
-window.arcadeClearCache=hardReload;
+/* Arcade Cache & Service Worker Manager */
+(function(){
+  var B = "v33";
+  function purge(){
+    try { if (window.caches && caches.keys) caches.keys().then(function(k){ k.forEach(function(n){ caches.delete(n); }); }); } catch(e){}
+    try { if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) navigator.serviceWorker.getRegistrations().then(function(r){ r.forEach(function(s){ s.unregister(); }); }); } catch(e){}
+  }
+  function hardReload(){ purge(); var u = new URL(location.href); u.searchParams.set("nc", Date.now()); location.replace(u.toString()); }
+  try {
+    var prev = localStorage.getItem("arcade.build");
+    localStorage.setItem("arcade.build", B);
+    if (prev !== null && prev !== B) { purge(); }
+  } catch(e){}
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function() {
+      navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(function(){});
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    var els = document.querySelectorAll("[data-purge]");
+    for (var i = 0; i < els.length; i++) {
+      els[i].addEventListener("click", function(e){ e.preventDefault(); hardReload(); });
+    }
+  });
+  window.arcadeClearCache = hardReload;
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -21,8 +38,10 @@ window.arcadeClearCache=hardReload;
 <meta name="description" id="page-desc" content="Play browser games directly.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://gateway.arcade22cf.workers.dev" crossorigin>
+<link rel="dns-prefetch" href="https://gateway.arcade22cf.workers.dev">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=32">
+<link rel="stylesheet" href="/styles.css?v=33">
 </head>
 <body>
 
@@ -66,6 +85,10 @@ window.arcadeClearCache=hardReload;
           <svg viewBox="0 0 24 24"><path d="M19 6H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H5V8h14v8z"/></svg>
           Theater
         </button>
+        <button class="btn" id="btn-controls" title="Toggle Virtual Gamepad (Touch Controls)">
+          <svg viewBox="0 0 24 24"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S18.67 9 19.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+          Controls
+        </button>
         <button class="btn" id="btn-fullscreen" title="Fullscreen">
           <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
           Fullscreen
@@ -106,7 +129,10 @@ window.arcadeClearCache=hardReload;
         class="player-frame"
         id="player-frame"
         allow="autoplay; fullscreen; gamepad; cross-origin-isolated; pointer-lock"
+        sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-popups allow-downloads allow-modals"
         allowfullscreen
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade"
         style="display:none"
       ></iframe>
 
@@ -114,6 +140,29 @@ window.arcadeClearCache=hardReload;
       <div class="player-loading hide" id="player-loading">
         <div class="spin"></div>
         Loading game…
+      </div>
+
+      <!-- VIRTUAL TOUCH GAMEPAD (Inspired by DroidDeck Wayland Touch Passthrough) -->
+      <div class="virtual-gamepad" id="virtual-gamepad" hidden>
+        <div class="vg-dpad">
+          <button class="vg-btn vg-up" type="button" data-key="ArrowUp" data-code="ArrowUp" aria-label="Up">▲</button>
+          <div class="vg-mid-row">
+            <button class="vg-btn vg-left" type="button" data-key="ArrowLeft" data-code="ArrowLeft" aria-label="Left">◀</button>
+            <div class="vg-center"></div>
+            <button class="vg-btn vg-right" type="button" data-key="ArrowRight" data-code="ArrowRight" aria-label="Right">▶</button>
+          </div>
+          <button class="vg-btn vg-down" type="button" data-key="ArrowDown" data-code="ArrowDown" aria-label="Down">▼</button>
+        </div>
+        <div class="vg-actions">
+          <div class="vg-act-row">
+            <button class="vg-btn vg-action" type="button" data-key="KeyE" data-code="KeyE">X</button>
+            <button class="vg-btn vg-action" type="button" data-key="Escape" data-code="Escape">Y</button>
+          </div>
+          <div class="vg-act-row">
+            <button class="vg-btn vg-action vg-pri" type="button" data-key="Space" data-code="Space">A</button>
+            <button class="vg-btn vg-action" type="button" data-key="ShiftLeft" data-code="ShiftLeft">B</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -163,7 +212,7 @@ window.arcadeClearCache=hardReload;
   <p><button id="purge-cache" data-purge type="button" title="Clear all cached files and load the newest version" style="background:none;border:1px solid var(--acc);color:var(--acc);font:inherit;padding:6px 14px;border-radius:999px;cursor:pointer">↻ Clear cache &amp; update</button></p>
 </footer>
 
-<script src="/config.js?v=31"></script>
+<script src="/config.js?v=33"></script>
 <script>
 (function () {
   /* ── helpers ── */
@@ -233,7 +282,7 @@ window.arcadeClearCache=hardReload;
     const p = g.root
       ? '/' + path.replace(/\/$/, '') + '/'
       : '/play/' + g.key + '/' + path;
-    return BASE + p + (p.includes('?') ? '&' : '?') + 'v=29';
+    return BASE + p + (p.includes('?') ? '&' : '?') + 'v=33';
   }
 
   /* ── load games.json ── */
@@ -375,6 +424,52 @@ window.arcadeClearCache=hardReload;
       }
     });
 
+    /* ── virtual gamepad controller (Touch-to-Input Passthrough) ── */
+    const vg = $('virtual-gamepad');
+    $('btn-controls').addEventListener('click', () => {
+      const show = vg.hasAttribute('hidden');
+      if (show) {
+        vg.removeAttribute('hidden');
+        $('btn-controls').classList.add('pri');
+      } else {
+        vg.setAttribute('hidden', '');
+        $('btn-controls').classList.remove('pri');
+      }
+    });
+
+    function dispatchGameInput(evName, key, code) {
+      const frame = $('player-frame');
+      const payload = { type: 'arcade:input', event: evName, key: key, code: code };
+      try {
+        if (frame && frame.contentWindow) {
+          frame.contentWindow.postMessage(payload, '*');
+        }
+      } catch (e) {}
+    }
+
+    vg.querySelectorAll('.vg-btn').forEach(b => {
+      const key = b.dataset.key;
+      const code = b.dataset.code;
+      const onDown = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        b.classList.add('active');
+        if (navigator.vibrate) {
+          try { navigator.vibrate(14); } catch (ve) {}
+        }
+        dispatchGameInput('keydown', key, code);
+      };
+      const onUp = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        b.classList.remove('active');
+        dispatchGameInput('keyup', key, code);
+      };
+      b.addEventListener('pointerdown', onDown);
+      b.addEventListener('pointerup', onUp);
+      b.addEventListener('pointercancel', onUp);
+    });
+
     /* ── fullscreen ── */
     $('btn-fullscreen').addEventListener('click', () => {
       const wrap = $('player-wrap');
@@ -396,6 +491,14 @@ window.arcadeClearCache=hardReload;
       const frame = $('player-frame');
       $('player-loading').classList.remove('hide');
       frame.src = gameUrl(game);
+    });
+
+    /* ── memory cleanup on navigation ── */
+    window.addEventListener('pagehide', () => {
+      try {
+        const frame = $('player-frame');
+        if (frame && frame.src) frame.src = 'about:blank';
+      } catch (e) {}
     });
 
     /* ── more games (random 6 excluding this one) ── */

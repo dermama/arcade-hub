@@ -5,7 +5,7 @@ import CFG from "./games.json";
 const HOSTS = CFG.hosts;
 const ISO = new Set(CFG.iso || []);
 const ROOT = CFG.root_mounts || {};
-const SHIM_TAG = '<script src="/__shim.js?v=26"></script>';
+const SHIM_TAG = '<script src="/__shim.js?v=33"></script>';
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -194,14 +194,25 @@ export default {
       fwd.set(k, v);
     }
 
+    const isStatic = /\.(wasm|data|unityweb|mem|pck|bin|png|jpg|jpeg|webp|gif|svg|ico|mp3|ogg|wav|ttf|woff2|woff|br|gz|framework\.js|loader\.js)$/i.test(tail);
+
+    const fetchOptions = {
+      method: request.method,
+      headers: fwd,
+      body: ["GET", "HEAD"].includes(request.method) ? undefined : request.body,
+      redirect: "follow",
+    };
+
+    if (isStatic && request.method === "GET") {
+      fetchOptions.cf = {
+        cacheEverything: true,
+        cacheTtl: 604800,
+      };
+    }
+
     let up;
     try {
-      up = await fetch(target, {
-        method: request.method,
-        headers: fwd,
-        body: ["GET", "HEAD"].includes(request.method) ? undefined : request.body,
-        redirect: "follow",
-      });
+      up = await fetch(target, fetchOptions);
     } catch (e) {
       return new Response("upstream error: " + e.message, { status: 502, headers: CORS });
     }
@@ -222,13 +233,18 @@ export default {
     if (lc.includes("text/html")) {
       let html = await up.text();
       if (absBase) html = rewriteRoot(html, absBase);
-      out.set("Cache-Control", "no-store");
+      out.set("Cache-Control", "no-cache, no-store, must-revalidate");
       return new Response(inject(html), { status: up.status, headers: out });
     }
 
     if (absBase && (lc.includes("text/css") || lc.includes("css"))) {
       const css = await up.text();
+      out.set("Cache-Control", "public, max-age=86400");
       return new Response(rewriteCss(css, absBase), { status: up.status, headers: out });
+    }
+
+    if (isStatic) {
+      out.set("Cache-Control", "public, max-age=604800, immutable");
     }
 
     return new Response(up.body, { status: up.status, headers: out });

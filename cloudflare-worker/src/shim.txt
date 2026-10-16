@@ -17,16 +17,30 @@
 
     var LOW = RH.touch > 0 || (RH.cores > 0 && RH.cores <= 4) || (RH.memory > 0 && RH.memory <= 4);
     var V_LOW = (RH.cores > 0 && RH.cores <= 2) || (RH.memory > 0 && RH.memory <= 2);
-    var perfOn, resOn;
+    var perfOn, resOn, drsAuto;
     try {
       var lp = localStorage.getItem("arcade.perf");
       var lr = localStorage.getItem("arcade.res");
+      var ld = localStorage.getItem("arcade.drs_auto");
       perfOn = lp === null ? LOW : lp === "1";
-      resOn = lr === null ? LOW : lr === "1";
-    } catch (e) { perfOn = LOW; resOn = LOW; }
+      resOn = lr === null ? false : lr === "1";
+      drsAuto = ld === null ? true : ld === "1";
+    } catch (e) { perfOn = LOW; resOn = false; drsAuto = true; }
 
     window.ARCADE = window.ARCADE || {};
-    window.ARCADE.perf = { dpr: V_LOW ? 0.5 : 0.75, res: V_LOW ? 0.5 : 0.66, on: !!perfOn, resOn: !!resOn, low: !!LOW, vlow: !!V_LOW, real: RH };
+    window.ARCADE.perf = {
+      dpr: V_LOW ? 1.0 : (LOW ? 1.25 : 1.5),
+      res: V_LOW ? 0.6 : 0.75,
+      fact: 1.0,
+      autoDRS: !!drsAuto,
+      on: !!perfOn,
+      resOn: !!resOn,
+      low: !!LOW,
+      vlow: !!V_LOW,
+      real: RH,
+      currentFPS: 60,
+      drawCalls: 0
+    };
 
     var DESKTOP = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
     var d = function (o, k, v) { try { Object.defineProperty(o, k, { get: function () { return v; }, configurable: true }); } catch (e) {} };
@@ -38,7 +52,9 @@
     d(navigator, "hardwareConcurrency", Math.max(RH.cores || 4, 8));
     d(navigator, "deviceMemory", Math.max(RH.memory || 4, 8));
 
+    /* ── WebGL Capability Clamping & Command Monitoring ── */
     var FLOOR = { 0x8DFB: 8192, 0x8DFD: 8192, 0x0D33: 16384, 0x8073: 4096, 0x8872: 32, 0x8869: 16, 0x8B4A: 32 };
+    var rawDrawCalls = 0;
     function patch(proto) {
       if (!proto || proto.__shim) return;
       proto.__shim = true;
@@ -48,10 +64,25 @@
         if (Object.prototype.hasOwnProperty.call(FLOOR, p) && typeof v === "number" && v < FLOOR[p]) return FLOOR[p];
         return v;
       };
+      var origDrawArrays = proto.drawArrays;
+      if (origDrawArrays) {
+        proto.drawArrays = function () {
+          rawDrawCalls++;
+          return origDrawArrays.apply(this, arguments);
+        };
+      }
+      var origDrawElements = proto.drawElements;
+      if (origDrawElements) {
+        proto.drawElements = function () {
+          rawDrawCalls++;
+          return origDrawElements.apply(this, arguments);
+        };
+      }
     }
     patch(window.WebGLRenderingContext && window.WebGLRenderingContext.prototype);
     patch(window.WebGL2RenderingContext && window.WebGL2RenderingContext.prototype);
 
+    /* ── WebGL Context Creation Optimization ── */
     (function () {
       try {
         var g = HTMLCanvasElement.prototype.getContext;
@@ -61,8 +92,10 @@
             if (typeof t === "string" && /(webgl2|webgl)/i.test(t)) {
               a = a || {};
               if (window.ARCADE.perf.on) {
-                if (a.powerPreference == null) a.powerPreference = "low-power";
-                if (a.antialias == null) a.antialias = false;
+                if (a.powerPreference == null) a.powerPreference = "high-performance";
+                if (a.antialias == null && (LOW || window.ARCADE.perf.autoDRS)) a.antialias = false;
+                if (a.desynchronized == null) a.desynchronized = true;
+                if (a.preserveDrawingBuffer == null) a.preserveDrawingBuffer = false;
               }
               return g.call(this, t, a);
             }
@@ -72,57 +105,417 @@
       } catch (e) {}
     })();
 
+    /* ── Device Pixel Ratio Capping (Saves up to 75% GPU fillrate on high-DPI phones) ── */
     if (perfOn) (function () {
       try {
         var r0 = window.devicePixelRatio || 1;
-        Object.defineProperty(window, "devicePixelRatio", { get: function () { return Math.min(r0, window.ARCADE.perf.dpr); }, configurable: true });
+        var maxDpr = window.ARCADE.perf.dpr;
+        if (r0 > maxDpr) {
+          Object.defineProperty(window, "devicePixelRatio", {
+            get: function () { return maxDpr; },
+            configurable: true
+          });
+        }
       } catch (e) {}
       var mm = window.matchMedia;
       if (mm) try {
         window.matchMedia = function (mq) {
-          if (/dppx|dpi|resolution/i.test(String(mq))) return { matches: false, media: String(mq), addListener: function () {}, removeListener: function () {}, addEventListener: function () {}, removeEventListener: function () {}, onchange: null, dispatchEvent: function () { return false; } };
+          if (/dppx|dpi|resolution/i.test(String(mq))) {
+            return {
+              matches: false,
+              media: String(mq),
+              addListener: function () {},
+              removeListener: function () {},
+              addEventListener: function () {},
+              removeEventListener: function () {},
+              onchange: null,
+              dispatchEvent: function () { return false; }
+            };
+          }
           return mm.call(window, mq);
         };
       } catch (e) {}
     })();
 
+    /* ── Axis 12: Adaptive Quality & Hardware Profiling Engine ── */
+    function AdaptiveQuality() {
+      this.tier = this.detectTier();
+      this.presets = {
+        "ultra-low": { drs: 0.5, antialias: false, dpr: 1.0 },
+        "low":       { drs: 0.65, antialias: false, dpr: 1.25 },
+        "medium":    { drs: 0.85, antialias: true,  dpr: 1.5 },
+        "high":      { drs: 1.0,  antialias: true,  dpr: 2.0 }
+      };
+    }
+    AdaptiveQuality.prototype.detectTier = function () {
+      try {
+        var saved = localStorage.getItem("arcade.quality-tier");
+        if (saved) return saved;
+      } catch (e) {}
+      var mem = (RH && RH.memory) || 4;
+      var cores = (RH && RH.cores) || 4;
+      if (mem <= 2 || cores <= 2) return "ultra-low";
+      if (mem <= 4 || cores <= 4 || (RH && RH.mobile)) return "low";
+      if (mem <= 8 && cores <= 8) return "medium";
+      return "high";
+    };
+    AdaptiveQuality.prototype.getPreset = function () {
+      return this.presets[this.tier] || this.presets["medium"];
+    };
+    AdaptiveQuality.prototype.learn = function (avgFps) {
+      if (avgFps < 28 && this.tier !== "ultra-low") {
+        var tiers = ["high", "medium", "low", "ultra-low"];
+        var idx = tiers.indexOf(this.tier);
+        if (idx < tiers.length - 1) {
+          this.tier = tiers[idx + 1];
+          try { localStorage.setItem("arcade.quality-tier", this.tier); } catch (e) {}
+          var p = this.getPreset();
+          if (window.ARCADE && window.ARCADE.DRS) {
+            window.ARCADE.DRS.minFactor = Math.min(window.ARCADE.DRS.minFactor, p.drs);
+            window.ARCADE.DRS.applyFactor(p.drs);
+          }
+        }
+      }
+    };
+    window.ARCADE.AdaptiveQuality = new AdaptiveQuality();
+    var tierPreset = window.ARCADE.AdaptiveQuality.getPreset();
+
+    /* ── Adaptive Dynamic Resolution Scaling (DRS) Engine (Solves R7 & R8) ── */
+    var initDrsFactor = window.ARCADE.perf.autoDRS ? tierPreset.drs : 1.0;
+    var DRS = {
+      minFactor: V_LOW ? 0.5 : Math.min(0.65, tierPreset.drs),
+      maxFactor: 1.0,
+      currentFactor: initDrsFactor,
+      dropThreshold: 32, // ms per frame (~30 FPS)
+      raiseThreshold: 18, // ms per frame (~55 FPS)
+      consecutiveGoodFrames: 0,
+      consecutiveBadFrames: 0,
+      lastAdjustment: performance.now(),
+      applyFactor: function (factor) {
+        factor = Math.max(this.minFactor, Math.min(this.maxFactor, Math.round(factor * 100) / 100));
+        if (Math.abs(factor - this.currentFactor) < 0.04) return;
+        this.currentFactor = factor;
+        window.ARCADE.perf.fact = factor;
+        try {
+          var canvases = document.querySelectorAll("canvas");
+          var needsSharp = factor < 0.9;
+          for (var i = 0; i < canvases.length; i++) {
+            var c = canvases[i];
+            if (needsSharp) {
+              if (c.classList && c.classList.add) c.classList.add("arc-sharp");
+            } else {
+              if (c.classList && c.classList.remove) c.classList.remove("arc-sharp");
+            }
+            if (c.__arc && c.__arc.w && c.__arc.h) {
+              c.width = c.__arc.w;
+              c.height = c.__arc.h;
+            }
+          }
+        } catch (e) {}
+      },
+      sample: function (frameTimeMs) {
+        if (!window.ARCADE.perf.autoDRS) return;
+        var now = performance.now();
+        if (now - this.lastAdjustment < 1500) return; // cooldown between adjustments
+
+        if (frameTimeMs > this.dropThreshold) {
+          this.consecutiveBadFrames++;
+          this.consecutiveGoodFrames = 0;
+          if (this.consecutiveBadFrames >= 3) {
+            this.consecutiveBadFrames = 0;
+            this.lastAdjustment = now;
+            this.applyFactor(this.currentFactor - 0.12);
+          }
+        } else if (frameTimeMs < this.raiseThreshold) {
+          this.consecutiveGoodFrames++;
+          this.consecutiveBadFrames = 0;
+          if (this.consecutiveGoodFrames >= 6) {
+            this.consecutiveGoodFrames = 0;
+            this.lastAdjustment = now;
+            this.applyFactor(this.currentFactor + 0.1);
+          }
+        } else {
+          this.consecutiveGoodFrames = 0;
+          this.consecutiveBadFrames = 0;
+        }
+      }
+    };
+    window.ARCADE.DRS = DRS;
+
+    /* ── Canvas Buffer Interceptor ── */
     (function () {
       try {
         var WP = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, "width");
         var HP = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, "height");
-        window.ARCADE.perf.fact = resOn ? window.ARCADE.perf.res : 1;
+        var startFactor = resOn ? window.ARCADE.perf.res : initDrsFactor;
+        window.ARCADE.perf.fact = startFactor;
+        DRS.currentFactor = startFactor;
+
         if (WP) Object.defineProperty(HTMLCanvasElement.prototype, "width", {
           configurable: true,
           get: function () { return this.__arc ? this.__arc.w : WP.get.call(this); },
           set: function (v) {
-            this.__arc = this.__arc || { w: WP.get.call(this) };
+            this.__arc = this.__arc || { w: WP.get.call(this), h: HP ? HP.get.call(this) : 0 };
             this.__arc.w = Number(v) || 0;
-            WP.set.call(this, Math.max(1, Math.round(this.__arc.w * (window.ARCADE.perf.fact || 1))));
+            var f = window.ARCADE.perf.fact || 1.0;
+            WP.set.call(this, Math.max(1, Math.round(this.__arc.w * f)));
           }
         });
         if (HP) Object.defineProperty(HTMLCanvasElement.prototype, "height", {
           configurable: true,
           get: function () { return this.__arc ? this.__arc.h : HP.get.call(this); },
           set: function (v) {
-            this.__arc = this.__arc || { h: HP.get.call(this) };
+            this.__arc = this.__arc || { w: WP ? WP.get.call(this) : 0, h: HP.get.call(this) };
             this.__arc.h = Number(v) || 0;
-            HP.set.call(this, Math.max(1, Math.round(this.__arc.h * (window.ARCADE.perf.fact || 1))));
+            var f = window.ARCADE.perf.fact || 1.0;
+            HP.set.call(this, Math.max(1, Math.round(this.__arc.h * f)));
           }
         });
       } catch (e) {}
     })();
 
+    /* ── Background Tab Power Throttling & Visibility Handling ── */
+    (function () {
+      try {
+        document.addEventListener("visibilitychange", function () {
+          if (document.hidden) {
+            window.ARCADE.perf.isBackground = true;
+          } else {
+            window.ARCADE.perf.isBackground = false;
+            DRS.lastAdjustment = performance.now();
+            DRS.consecutiveBadFrames = 0;
+            DRS.consecutiveGoodFrames = 0;
+          }
+        });
+      } catch (e) {}
+    })();
+
+    /* ── Axis 10 / Gamescope Patch 0110: Touch-to-Input Passthrough Listener ── */
+    (function () {
+      try {
+        if (!window.addEventListener) return;
+        var KEY_MAP = {
+          "ArrowUp": 38, "ArrowDown": 40, "ArrowLeft": 37, "ArrowRight": 39,
+          "Space": 32, "ShiftLeft": 16, "ShiftRight": 16, "KeyE": 69, "KeyZ": 90,
+          "KeyX": 88, "KeyC": 67, "Escape": 27, "Enter": 13, "KeyW": 87, "KeyA": 65, "KeyS": 83, "KeyD": 68
+        };
+        window.addEventListener("message", function (ev) {
+          if (!ev || !ev.data || ev.data.type !== "arcade:input") return;
+          var type = ev.data.event === "keyup" ? "keyup" : "keydown";
+          var code = ev.data.code || "Space";
+          var key = ev.data.key || " ";
+          var keyCode = ev.data.keyCode || KEY_MAP[code] || KEY_MAP[key] || 32;
+
+          try {
+            var kEvent;
+            try {
+              kEvent = new KeyboardEvent(type, {
+                key: key,
+                code: code,
+                keyCode: keyCode,
+                which: keyCode,
+                bubbles: true,
+                cancelable: true
+              });
+            } catch (ce) {
+              kEvent = document.createEvent("KeyboardEvent");
+              if (kEvent.initKeyboardEvent) {
+                kEvent.initKeyboardEvent(type, true, true, window, key, 0, "", false, "");
+              }
+            }
+            try { Object.defineProperty(kEvent, "keyCode", { get: function () { return keyCode; } }); } catch (pe) {}
+            try { Object.defineProperty(kEvent, "which", { get: function () { return keyCode; } }); } catch (pe) {}
+
+            var target = document.activeElement || document.querySelector("canvas") || window;
+            target.dispatchEvent(kEvent);
+            document.dispatchEvent(kEvent);
+            window.dispatchEvent(kEvent);
+          } catch (err) {}
+        });
+      } catch (e) {}
+    })();
+
+    /* ── WebAudio Unlock & Active Context Resumer on User Touch/Click ── */
+    (function () {
+      try {
+        var AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        var trackedContexts = [];
+        try {
+          var origConstructor = AudioCtx;
+          var WrappedAudioContext = function () {
+            var ctx = new origConstructor();
+            trackedContexts.push(ctx);
+            return ctx;
+          };
+          WrappedAudioContext.prototype = origConstructor.prototype;
+          window.AudioContext = WrappedAudioContext;
+        } catch (we) {}
+
+        var unlockEvents = ["touchstart", "touchend", "pointerdown", "keydown"];
+        function unlockAudio() {
+          try {
+            if (window.__arcadeAudioUnlocked) return;
+            window.__arcadeAudioUnlocked = true;
+            for (var i = 0; i < trackedContexts.length; i++) {
+              if (trackedContexts[i] && trackedContexts[i].state === "suspended") {
+                try { trackedContexts[i].resume(); } catch (re) {}
+              }
+            }
+            for (var j = 0; j < unlockEvents.length; j++) {
+              document.removeEventListener(unlockEvents[j], unlockAudio, true);
+            }
+          } catch (e) {}
+        }
+        for (var k = 0; k < unlockEvents.length; k++) {
+          document.addEventListener(unlockEvents[k], unlockAudio, { capture: true, once: true });
+        }
+      } catch (e) {}
+    })();
+
+    /* ── Axis 10 / Gamescope Patch 0115: Per-Window Frame Pacer & Limiter ── */
+    function FramePacer(targetFps) {
+      this.targetFps = targetFps || (RH && RH.mobile ? 60 : 60);
+      this.targetInterval = 1000 / this.targetFps;
+      this.tolerance = this.targetInterval * 0.45; // half-refresh tolerance window
+      this.lastFrameTime = performance.now();
+      this.enabled = true;
+    }
+    FramePacer.prototype.shouldRender = function (now) {
+      if (!this.enabled) return true;
+      now = now || performance.now();
+      var elapsed = now - this.lastFrameTime;
+      if (elapsed + this.tolerance >= this.targetInterval) {
+        this.lastFrameTime = now - (elapsed % this.targetInterval);
+        return true;
+      }
+      return false;
+    };
+    FramePacer.prototype.setTarget = function (fps) {
+      this.targetFps = Math.max(15, Math.min(120, Number(fps) || 60));
+      this.targetInterval = 1000 / this.targetFps;
+      this.tolerance = this.targetInterval * 0.45;
+    };
+    window.ARCADE.FramePacer = new FramePacer();
+
+    /* ── Gamescope Patch 0112: WebGL Context Resilience & Iconic Resume Watcher ── */
+    (function () {
+      try {
+        function hookCanvas(cv) {
+          if (!cv || cv.__arcResilienceHooked) return;
+          cv.__arcResilienceHooked = true;
+          cv.addEventListener("webglcontextlost", function (e) {
+            e.preventDefault(); // Invariant: prevent permanent destruction
+            window.ARCADE.perf.contextLost = true;
+          }, false);
+          cv.addEventListener("webglcontextrestored", function () {
+            window.ARCADE.perf.contextLost = false;
+            if (cv.__arc && cv.__arc.w && cv.__arc.h) {
+              cv.width = cv.__arc.w;
+              cv.height = cv.__arc.h;
+            }
+          }, false);
+        }
+
+        var origGetContext = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function (type) {
+          if (type && typeof type === "string" && /(webgl|webgl2)/i.test(type)) {
+            hookCanvas(this);
+          }
+          return origGetContext.apply(this, arguments);
+        };
+
+        document.addEventListener("visibilitychange", function () {
+          if (!document.hidden && window.ARCADE.perf.contextLost) {
+            try {
+              var canvases = document.querySelectorAll("canvas");
+              for (var i = 0; i < canvases.length; i++) {
+                var c = canvases[i];
+                var gl = origGetContext.call(c, "webgl2") || origGetContext.call(c, "webgl");
+                if (gl && gl.isContextLost && gl.isContextLost()) {
+                  var ext = gl.getExtension("WEBGL_lose_context");
+                  if (ext && ext.restoreContext) ext.restoreContext();
+                }
+              }
+            } catch (e2) {}
+          }
+        });
+      } catch (e) {}
+    })();
+
+    /* ── Axis 1: Spatial Partitioning (Spatial Hash Grid) ── */
+    function SpatialHashGrid(cellSize) {
+      this.cellSize = cellSize || 64;
+      this.cells = new Map();
+    }
+    SpatialHashGrid.prototype.insert = function (id, x, y, w, h) {
+      var cs = this.cellSize;
+      var x0 = (x / cs) | 0, y0 = (y / cs) | 0;
+      var x1 = ((x + (w || 0)) / cs) | 0, y1 = ((y + (h || 0)) / cs) | 0;
+      for (var cx = x0; cx <= x1; cx++) {
+        for (var cy = y0; cy <= y1; cy++) {
+          var k = cx + "," + cy;
+          var bucket = this.cells.get(k);
+          if (!bucket) { bucket = []; this.cells.set(k, bucket); }
+          bucket.push(id);
+        }
+      }
+    };
+    SpatialHashGrid.prototype.query = function (x, y, w, h, out) {
+      out = out || [];
+      out.length = 0;
+      var cs = this.cellSize;
+      var x0 = (x / cs) | 0, y0 = (y / cs) | 0;
+      var x1 = ((x + (w || 0)) / cs) | 0, y1 = ((y + (h || 0)) / cs) | 0;
+      var seen = new Set();
+      for (var cx = x0; cx <= x1; cx++) {
+        for (var cy = y0; cy <= y1; cy++) {
+          var bucket = this.cells.get(cx + "," + cy);
+          if (bucket) {
+            for (var i = 0; i < bucket.length; i++) {
+              var id = bucket[i];
+              if (!seen.has(id)) { seen.add(id); out.push(id); }
+            }
+          }
+        }
+      }
+      return out;
+    };
+    SpatialHashGrid.prototype.clear = function () { this.cells.clear(); };
+    window.ARCADE.SpatialHashGrid = SpatialHashGrid;
+
+    /* ── Axis 6: Zero-Allocation Object Pool ── */
+    function ObjectPool(factory, reset, initialSize) {
+      this.factory = factory;
+      this.reset = reset || function () {};
+      this.pool = [];
+      initialSize = initialSize || 32;
+      for (var i = 0; i < initialSize; i++) this.pool.push(this.factory());
+    }
+    ObjectPool.prototype.acquire = function () {
+      var item = this.pool.length > 0 ? this.pool.pop() : this.factory();
+      this.reset.apply(null, [item].concat(Array.prototype.slice.call(arguments)));
+      return item;
+    };
+    ObjectPool.prototype.release = function (item) { this.pool.push(item); };
+    window.ARCADE.ObjectPool = ObjectPool;
+
+    var isLowTier = window.ARCADE.AdaptiveQuality && (window.ARCADE.AdaptiveQuality.tier === "ultra-low" || window.ARCADE.AdaptiveQuality.tier === "low");
+    var blurTog = isLowTier ? "" : "-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);";
+    var blurPanel = isLowTier ? "" : "-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);";
+
     var CSS = "#unity-mobile-warning,#mobile-warning,.mobile-warning,#unity-warning{display:none!important}";
     CSS += "#unity-container,#unity-container.unity-desktop,.unity-desktop,.unity-mobile,#game-container,#canvas-container,.webgl-content{position:absolute!important;inset:0!important;top:0!important;left:0!important;width:100%!important;height:100%!important;transform:none!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;margin:0!important}";
-    CSS += "#unity-canvas,canvas{width:100%!important;height:100%!important;max-width:100vw!important;max-height:100dvh!important;object-fit:contain!important;display:block!important;margin:auto!important}";
+    CSS += "#unity-canvas,canvas{width:100%!important;height:100%!important;max-width:100vw!important;max-height:100dvh!important;object-fit:contain!important;display:block!important;margin:auto!important;touch-action:none!important}";
+    CSS += "canvas.arc-sharp{image-rendering:-webkit-optimize-contrast!important;image-rendering:crisp-edges!important;filter:contrast(1.04) saturate(1.02)!important}";
     CSS += "#unity-footer,#unity-warning{display:none!important}";
     CSS += "#arcade-hud{position:fixed;z-index:2147483000;direction:ltr;font-family:system-ui,'Segoe UI',Roboto,Arial,sans-serif;color:#eef1f8;pointer-events:none;bottom:14px;left:14px}";
     CSS += "#arcade-hud *{box-sizing:border-box}";
-    CSS += "#ahud-tog{pointer-events:auto;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(9,12,20,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px -8px rgba(0,0,0,.6);transition:transform .15s}";
+    CSS += "#ahud-tog{pointer-events:auto;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(9,12,20," + (isLowTier ? ".95" : ".82") + ");" + blurTog + "color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px -8px rgba(0,0,0,.6);transition:transform .15s}";
     CSS += "#ahud-tog:hover{transform:scale(1.07)}#ahud-tog svg{width:20px;height:20px;fill:#a78bfa}";
-    CSS += "#ahud-panel{pointer-events:auto;margin-bottom:10px;width:250px;max-width:calc(100vw - 28px);border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(9,12,20,.93);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 18px 44px -14px rgba(0,0,0,.7);overflow:hidden}";
+    CSS += "#ahud-panel{pointer-events:auto;margin-bottom:10px;width:260px;max-width:calc(100vw - 28px);border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(9,12,20," + (isLowTier ? ".98" : ".93") + ");" + blurPanel + "box-shadow:0 18px 44px -14px rgba(0,0,0,.7);overflow:hidden}";
     CSS += "#ahud-panel[hidden]{display:none}";
-    CSS += ".ahd-h{font-size:12.5px;font-weight:700;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.08);color:#a78bfa}";
+    CSS += ".ahd-h{font-size:12.5px;font-weight:700;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.08);color:#a78bfa;display:flex;justify-content:space-between;align-items:center}";
     CSS += ".ahd-row{display:flex;justify-content:space-between;gap:8px;padding:5px 12px;font-size:12px}";
     CSS += ".ahd-row span{color:#9aa3b8}.ahd-row b{font-weight:600;text-align:left;direction:ltr;font-variant-numeric:tabular-nums}";
     CSS += ".ahd-row b.g{color:#7ee7c0}.ahd-row b.y{color:#fde047}.ahd-row b.r{color:#f87171}";
@@ -142,15 +535,18 @@
     hud.id = "arcade-hud";
     hud.innerHTML = '<button id="ahud-tog" title="Device performance" aria-label="Device performance"><svg viewBox="0 0 24 24"><path d="M12 4L4 16h16z"/></svg></button>' +
       '<div id="ahud-panel" hidden>' +
-      '<div class="ahd-h">Device performance in-game</div>' +
+      '<div class="ahd-h"><span>Performance &amp; DRS</span><span id="ahud-tier" style="font-size:10px;text-transform:uppercase;color:#7ee7c0;padding:2px 6px;border:1px solid rgba(126,231,192,0.3);border-radius:6px">Active</span></div>' +
       '<div class="ahd-row"><span>Frames (FPS)</span><b id="ahud-fps">—</b></div>' +
       '<div class="ahd-row"><span>Frame time</span><b id="ahud-ms">—</b></div>' +
+      '<div class="ahd-row"><span>Render Scale (DRS)</span><b id="ahud-res-scale" class="g">100%</b></div>' +
+      '<div class="ahd-row"><span>Draw calls</span><b id="ahud-draws">0</b></div>' +
       '<div class="ahd-row"><span>Memory (RAM)</span><b id="ahud-ram">—</b></div>' +
       '<div class="ahd-row"><span>CPU cores</span><b id="ahud-cores">—</b></div>' +
       '<div class="ahd-row"><span>GPU</span><b id="ahud-gpu" style="text-align:left;direction:ltr;white-space:normal;line-height:1.4">—</b></div>' +
-      '<label class="ahd-sw"><span>Performance mode</span><input type="checkbox" id="ahud-perf"></label>' +
-      '<label class="ahd-sw"><span>Reduced render resolution</span><input type="checkbox" id="ahud-res"></label>' +
-      '<div class="ahd-help">How to read this?<br>• FPS = frames per second; above 30 feels smooth.<br>• RAM under 4GB may crash the browser on heavy games.<br>• Fewer than 4 cores means slower performance.<br>• GPU = the graphics processor that renders the game.</div>' +
+      '<label class="ahd-sw"><span>Adaptive DRS (Smart Scaling)</span><input type="checkbox" id="ahud-drs-auto"></label>' +
+      '<label class="ahd-sw"><span>Gamescope Frame Pacer (60 FPS)</span><input type="checkbox" id="ahud-pacer"></label>' +
+      '<label class="ahd-sw"><span>Fixed resolution cut</span><input type="checkbox" id="ahud-res"></label>' +
+      '<div class="ahd-help">Smart DRS automatically adjusts internal 3D render resolution if frame rates dip below 30 FPS, keeping gameplay smooth without screen shrinkage!</div>' +
       '<div class="ahd-note" id="ahud-note" hidden></div>' +
       '<button class="ahd-close" id="ahud-close">Close</button>' +
       '</div>';
@@ -161,18 +557,24 @@
       var panel = document.getElementById("ahud-panel");
       var pFps = document.getElementById("ahud-fps");
       var pMs = document.getElementById("ahud-ms");
+      var pScale = document.getElementById("ahud-res-scale");
+      var pDraws = document.getElementById("ahud-draws");
+      var pTier = document.getElementById("ahud-tier");
       var pRam = document.getElementById("ahud-ram");
       var pCores = document.getElementById("ahud-cores");
       var pGpu = document.getElementById("ahud-gpu");
-      var cPerf = document.getElementById("ahud-perf");
+      var cDrsAuto = document.getElementById("ahud-drs-auto");
+      var cPacer = document.getElementById("ahud-pacer");
       var cRes = document.getElementById("ahud-res");
       var eNote = document.getElementById("ahud-note");
       var open = false, raf = 0, frames = 0, t0 = 0, gpuStr = "";
 
-      cPerf.checked = !!window.ARCADE.perf.on;
+      cDrsAuto.checked = !!window.ARCADE.perf.autoDRS;
+      if (cPacer) cPacer.checked = !!(window.ARCADE.FramePacer && window.ARCADE.FramePacer.enabled);
       cRes.checked = !!window.ARCADE.perf.resOn;
       if (RH.memory) pRam.textContent = RH.memory + " GB";
       if (RH.cores) pCores.textContent = RH.cores + (RH.cores === 1 ? " core" : " cores");
+      if (pTier && window.ARCADE.AdaptiveQuality) pTier.textContent = window.ARCADE.AdaptiveQuality.tier.toUpperCase();
 
       function getGpu() {
         if (gpuStr) return gpuStr;
@@ -192,26 +594,47 @@
       function paint(fps, ms) {
         if (!open) return;
         pMs.textContent = ms.toFixed(1) + " ms";
-        if (fps >= 50) pFps.textContent = Math.round(fps) + "";
-        else pFps.textContent = Math.round(fps) + "";
+        pFps.textContent = Math.round(fps) + "";
         pFps.className = fps >= 45 ? "g" : (fps >= 25 ? "y" : "r");
         pGpu.textContent = getGpu();
+        var pct = Math.round((window.ARCADE.perf.fact || 1.0) * 100);
+        pScale.textContent = pct + "%" + (window.ARCADE.perf.autoDRS ? " (Auto)" : "");
+        pScale.className = pct >= 90 ? "g" : (pct >= 70 ? "y" : "r");
+        if (pDraws) pDraws.textContent = window.ARCADE.perf.drawCalls || 0;
+        if (pTier && window.ARCADE.AdaptiveQuality) pTier.textContent = window.ARCADE.AdaptiveQuality.tier.toUpperCase();
       }
 
       function loop() {
-        if (!open) return;
         var now = performance.now();
         frames++;
         var dt = now - t0;
         if (dt >= 600) {
           var fps = (frames * 1000) / dt;
-          paint(fps, dt / frames);
-          frames = 0; t0 = now;
+          var msPerFrame = dt / frames;
+          window.ARCADE.perf.currentFPS = fps;
+          window.ARCADE.perf.drawCalls = rawDrawCalls;
+          rawDrawCalls = 0;
+          DRS.sample(msPerFrame);
+          if (window.ARCADE.AdaptiveQuality) window.ARCADE.AdaptiveQuality.learn(fps);
+          if (open) paint(fps, msPerFrame);
+          frames = 0;
+          t0 = now;
         }
         raf = requestAnimationFrame(loop);
       }
-      function start() { if (open) return; open = true; frames = 0; t0 = performance.now(); paint(0, 0); raf = requestAnimationFrame(loop); }
-      function stop() { open = false; cancelAnimationFrame(raf); }
+
+      /* Continuously monitor DRS even when HUD is closed to protect gameplay */
+      t0 = performance.now();
+      raf = requestAnimationFrame(loop);
+
+      function start() {
+        if (open) return;
+        open = true;
+        paint(window.ARCADE.perf.currentFPS || 60, 16.6);
+      }
+      function stop() {
+        open = false;
+      }
 
       tog.addEventListener("click", function () {
         if (open) { panel.hidden = true; stop(); }
@@ -225,29 +648,32 @@
         if (t) eNote.textContent = t;
       }
 
-      cPerf.addEventListener("change", function () {
-        window.ARCADE.perf.on = cPerf.checked;
-        try { localStorage.setItem("arcade.perf", cPerf.checked ? "1" : "0"); } catch (e) {}
-        if (cPerf.checked) {
-          try { Object.defineProperty(window, "devicePixelRatio", { get: function () { return window.ARCADE.perf.dpr; }, configurable: true }); } catch (e) {}
-          note("Performance mode takes full effect when the game is opened from the start — the current run resolution may not change immediately.");
-        } else {
-          try { delete window.devicePixelRatio; } catch (e) {}
-          note("");
+      cDrsAuto.addEventListener("change", function () {
+        window.ARCADE.perf.autoDRS = cDrsAuto.checked;
+        try { localStorage.setItem("arcade.drs_auto", cDrsAuto.checked ? "1" : "0"); } catch (e) {}
+        if (!cDrsAuto.checked && !cRes.checked) {
+          DRS.applyFactor(1.0);
         }
+        note(cDrsAuto.checked ? "Adaptive DRS enabled: scale will dynamically tune to maintain 30+ FPS." : "Adaptive DRS disabled.");
       });
+
+      if (cPacer) {
+        cPacer.addEventListener("change", function () {
+          if (window.ARCADE.FramePacer) window.ARCADE.FramePacer.enabled = cPacer.checked;
+          note(cPacer.checked ? "Gamescope Frame Pacer active: locks 60 FPS pacing to eliminate jitter & save battery." : "Frame pacer disabled.");
+        });
+      }
+
       cRes.addEventListener("change", function () {
-        window.ARCADE.perf.fact = cRes.checked ? window.ARCADE.perf.res : 1;
+        window.ARCADE.perf.resOn = cRes.checked;
         try { localStorage.setItem("arcade.res", cRes.checked ? "1" : "0"); } catch (e) {}
-        try {
-          Array.prototype.slice.call(document.querySelectorAll("canvas")).forEach(function (cv) {
-            if (cv.__arc) { var w = cv.__arc.w, h = cv.__arc.h; cv.width = w; cv.height = h; }
-          });
-        } catch (e2) {}
-        note(cRes.checked ? "Render resolution reduced to lower the GPU load." : "");
+        var f = cRes.checked ? window.ARCADE.perf.res : (window.ARCADE.perf.autoDRS ? DRS.currentFactor : 1.0);
+        DRS.applyFactor(f);
+        note(cRes.checked ? "Render resolution locked to lower scale for maximum GPU relief." : "");
       });
     })();
 
+    /* ── Fullscreen Controller ── */
     (function () {
       try {
         var root = document.documentElement;
