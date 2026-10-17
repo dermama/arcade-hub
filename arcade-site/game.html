@@ -5,7 +5,7 @@
 <script>
 /* Arcade Cache & Service Worker Manager */
 (function(){
-  var B = "v37";
+  var B = "v38";
   function purge(){
     try { if (window.caches && caches.keys) caches.keys().then(function(k){ k.forEach(function(n){ caches.delete(n); }); }); } catch(e){}
     try { if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) navigator.serviceWorker.getRegistrations().then(function(r){ r.forEach(function(s){ s.unregister(); }); }); } catch(e){}
@@ -41,7 +41,7 @@
 <link rel="preconnect" href="https://gateway.arcade22cf2.workers.dev" crossorigin>
 <link rel="dns-prefetch" href="https://gateway.arcade22cf2.workers.dev">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=37">
+<link rel="stylesheet" href="/styles.css?v=38">
 </head>
 <body>
 
@@ -250,7 +250,7 @@
   <p><button id="purge-cache" data-purge type="button" title="Clear all cached files and load the newest version" style="background:none;border:1px solid var(--acc);color:var(--acc);font:inherit;padding:6px 14px;border-radius:999px;cursor:pointer">↻ Clear cache &amp; update</button></p>
 </footer>
 
-<script src="/config.js?v=37"></script>
+<script src="/config.js?v=38"></script>
 <script>
 (function () {
   /* ── helpers ── */
@@ -324,7 +324,7 @@
     const p = g.root
       ? '/' + path.replace(/\/$/, '') + '/'
       : '/play/' + g.key + '/' + path;
-    return BASE + p + (p.includes('?') ? '&' : '?') + 'v=37';
+    return BASE + p + (p.includes('?') ? '&' : '?') + 'v=38';
   }
 
   /* ── load games.json ── */

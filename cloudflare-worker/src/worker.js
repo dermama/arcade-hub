@@ -5,7 +5,7 @@ import CFG from "./games.json";
 const HOSTS = CFG.hosts;
 const ISO = new Set(CFG.iso || []);
 const ROOT = CFG.root_mounts || {};
-const SHIM_TAG = '<script src="/__shim.js?v=37"></script>';
+const SHIM_TAG = '<script src="/__shim.js?v=38"></script>';
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
