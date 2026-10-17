@@ -128,13 +128,19 @@
         </div>
       </div>
 
-      <!-- CLOUD PLAY HUD BAR (Direct Browser.lol Integration) -->
+      <!-- CLOUD PLAY HUD BAR (Direct Browser.lol Smart Focus) -->
       <div class="cloud-hud" id="cloud-hud" style="display:none;">
         <div class="cloud-hud-info">
-          <span class="cloud-hud-badge">☁️ السحابة نشطة (Browser.lol)</span>
-          <span class="cloud-hud-text">تم نسخ رابط اللعبة تلقائياً! الصقه في المتصفح السحابي واضغط Start Session للبدء فوراً.</span>
+          <span class="cloud-hud-badge">☁️ السحابة (Browser.lol)</span>
+          <span class="cloud-step-pill">1️⃣ الصق الرابط</span>
+          <span class="cloud-step-pill">2️⃣ اضغط Start</span>
+          <span class="cloud-hud-text" id="cloud-hud-status">الرابط منسوخ في يدك! انقر داخل المربع واضغط لصق ثم Start.</span>
         </div>
         <div class="cloud-hud-actions">
+          <button class="btn btn-sm" id="btn-cloud-focus" type="button" title="تبديل التركيز (صندوق الإدخال مقابل شاشة اللعب الكاملة)">
+            <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor"><path d="M15 3l2.3 2.3-2.89 2.87 1.42 1.42L18.7 6.7 21 9V3h-6zM3 9l2.3-2.3 2.87 2.89 1.42-1.42L6.7 5.3 9 3H3v6zm6 12l-2.3-2.3 2.89-2.87-1.42-1.42L5.3 17.3 3 15v6h6zm12-6l-2.3 2.3-2.87-2.89-1.42 1.42 2.89 2.87L15 21h6v-6z"/></svg>
+            <span id="cloud-focus-label">شاشة كاملة</span>
+          </button>
           <button class="btn btn-sm" id="btn-cloud-copy" type="button" title="نسخ رابط اللعبة مجدداً">
             <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
             <span id="cloud-copy-label">نسخ الرابط</span>
@@ -479,6 +485,7 @@
 
     function cloudSetActive(on) {
       cloudActive = on;
+      const frame = $('player-frame');
       if (cloudBtn) {
         cloudBtn.classList.toggle('pri', on);
         cloudBtn.title = on ? 'Back to local play' : 'Play in an isolated remote browser (Browser.lol)';
@@ -490,10 +497,12 @@
       if (on) {
         setGamepad(false);
         $('btn-controls').disabled = true;
+        if (frame) frame.classList.add('cloud-mode', 'cloud-focused');
       } else {
         $('btn-controls').disabled = false;
         const hud = $('cloud-hud');
         if (hud) hud.style.display = 'none';
+        if (frame) frame.classList.remove('cloud-mode', 'cloud-focused');
       }
     }
 
@@ -592,15 +601,30 @@
       if (hud) {
         hud.style.display = 'flex';
         $('btn-cloud-external').href = shareUrl;
+        const statusEl = $('cloud-hud-status');
+        if (statusEl) statusEl.textContent = 'الرابط في يدك! 1: الصقه في المربع، 2: اضغط Start Session.';
       }
 
       $('player-loading').classList.add('hide');
       $('play-status').textContent = `${title} (Browser.lol Cloud)`;
-      showToast('🚀 تم تفعيل اللعب السحابي! تم نسخ رابط اللعبة إلى حافظتك، الصقه واضغط Start Session للبدء فوراً.');
+      showToast('🚀 الرابط منسوخ في يدك! الخطوة 1: الصق الرابط في المربع، الخطوة 2: اضغط Start للبدء فوراً.');
       cloudBtn.disabled = false;
     }
 
     // Cloud HUD actions
+    let cloudFocused = true;
+    const btnCloudFocus = $('btn-cloud-focus');
+    if (btnCloudFocus) {
+      btnCloudFocus.addEventListener('click', () => {
+        cloudFocused = !cloudFocused;
+        const frame = $('player-frame');
+        if (frame) frame.classList.toggle('cloud-focused', cloudFocused);
+        const lbl = $('cloud-focus-label');
+        if (lbl) lbl.textContent = cloudFocused ? 'شاشة كاملة' : 'تركيز الصندوق';
+        showToast(cloudFocused ? 'تم التركيز على صندوق الرابط.' : 'تم التبديل إلى الشاشة الكاملة للمتصفح.');
+      });
+    }
+
     const btnCloudCopy = $('btn-cloud-copy');
     if (btnCloudCopy) {
       btnCloudCopy.addEventListener('click', () => {
