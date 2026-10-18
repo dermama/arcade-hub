@@ -4,6 +4,13 @@
 // Cloud Play: the same worker exposes /cloud/* which launches an isolated
 // browser.lol session. Its API key lives only as the worker secret
 // BROWSER_LOL_API_KEY (set with: wrangler secret put BROWSER_LOL_API_KEY).
+//
+// CLOUD_BOT_URL: URL of the local/remote cloud-bot relay server.
+// Set this to 'http://localhost:3456' (or a deployed URL) to enable
+// the Puppeteer screenshot relay (Turnstile shown to user for human solving).
+// Leave empty '' to skip bot relay and fall back to the iframe method.
 window.ARCADE = {
   proxyBase: 'https://gateway.arcade22cf2.workers.dev'
 };
+// Set your relay bot URL here (or inject it at deploy time):
+window.CLOUD_BOT_URL = '';
