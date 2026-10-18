@@ -211,7 +211,7 @@ runTest('Cloudflare Worker has Edge Caching configuration enabled', () => {
 runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
   assert(workerCode.includes('Cache-Control", "public, max-age=604800, immutable"'), 'Static game assets must have immutable cache headers');
   assert(workerCode.includes('Cache-Control", "no-cache, no-store, must-revalidate"'), 'HTML documents must not be stale-cached');
-  assert(workerCode.includes('__shim.js?v=44'), 'Shim tag version must match latest build v44');
+  assert(workerCode.includes('__shim.js?v=45'), 'Shim tag version must match latest build v45');
 });
 
 // -------------------------------------------------------------------
@@ -220,7 +220,7 @@ runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
 console.log('\n▶ [Axis 7]: Testing Service Worker Offline & Tiered Caching Strategy...');
 
 runTest('Service Worker contains Tiered Cache configuration', () => {
-  assert(swCode.includes("VERSION = 'v44'"), 'Service worker should be synced to v44');
+  assert(swCode.includes("VERSION = 'v45'"), 'Service worker should be synced to v45');
   assert(swCode.includes('SHELL_CACHE'), 'App shell cache should be defined');
   assert(swCode.includes('GAME_CACHE'), 'Runtime game cache should be defined');
   assert(swCode.includes('IMG_CACHE'), 'Image cache should be defined');
@@ -242,23 +242,25 @@ runTest('Service Worker pre-caching is resilient to individual 404s', () => {
 // -------------------------------------------------------------------
 console.log('\n▶ [Axis 8, 10, 11]: Testing Client HTML/CSS Architecture & Lifecycle...');
 
-runTest('index.html registers Service Worker, preconnects, and uses unified v44 scripts', () => {
+runTest('index.html registers Service Worker, preconnects, and uses unified v45 scripts', () => {
   assert(indexHtml.includes('navigator.serviceWorker.register("/sw.js"'), 'SW registration must be present');
   assert(indexHtml.includes('rel="preconnect" href="https://gateway.arcade22cf2.workers.dev"'), 'Gateway preconnect must be present');
-  assert(indexHtml.includes('/app.js?v=44'), 'app.js must be unified to v=44');
-  assert(indexHtml.includes('/config.js?v=44'), 'config.js must be unified to v=44');
+  assert(indexHtml.includes('/app.js?v=45'), 'app.js must be unified to v=45');
+  assert(indexHtml.includes('/config.js?v=45'), 'config.js must be unified to v=45');
+  assert(indexHtml.includes('width=1360'), 'index.html must always use the 1360px desktop layout viewport');
 });
 
-runTest('game.html sandbox attributes, preconnect, memory cleanup, and v44 links', () => {
+runTest('game.html sandbox attributes, preconnect, memory cleanup, and v45 links', () => {
   assert(gameHtml.includes('sandbox="allow-scripts allow-same-origin allow-pointer-lock'), 'Sandbox attributes must be enforced on iframe');
   assert(gameHtml.includes("addEventListener('pagehide'"), 'Pagehide event listener must be present');
   assert(gameHtml.includes("frame.src = 'about:blank'"), 'Iframe must be blanked on pagehide to purge RAM/VRAM');
-  assert(gameHtml.includes('/config.js?v=44'), 'config.js in game.html must be unified to v=44');
+  assert(gameHtml.includes('/config.js?v=45'), 'config.js in game.html must be unified to v=45');
   assert(gameHtml.includes("v=38'"), 'game url query must be unified to v=38');
   assert(gameHtml.includes('fitRelayDesktop'), 'Desktop-mode fit helper must exist in game.html');
   assert(gameHtml.includes('RELAY_DESKTOP_W = 1280'), 'Desktop viewport width must be pinned to 1280px');
   assert(stylesCss.includes('width: 1280px'), 'Relay frame CSS must default to a 1280px desktop viewport');
   assert(stylesCss.includes('transform-origin: 0 0;'), 'Relay frame must scale from the top-left corner');
+  assert(gameHtml.includes('width=1360'), 'game.html must always use the 1360px desktop layout viewport');
 });
 
 runTest('styles.css contains content-visibility: auto for smooth mobile card scrolling', () => {
