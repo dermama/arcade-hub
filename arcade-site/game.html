@@ -732,10 +732,11 @@
           function relayPointer(type, e) {
             if (!relayWs || relayWs.readyState !== 1) return;
             const rect = canvas.getBoundingClientRect();
-            const cx   = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-            const cy   = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
-            const x = (cx - rect.left) / rect.width;
-            const y = (cy - rect.top)  / rect.height;
+            const touch = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]);
+            const cx   = touch ? touch.clientX : (e.clientX !== undefined ? e.clientX : 0);
+            const cy   = touch ? touch.clientY : (e.clientY !== undefined ? e.clientY : 0);
+            const x = Math.max(0, Math.min(1, (cx - rect.left) / rect.width));
+            const y = Math.max(0, Math.min(1, (cy - rect.top)  / rect.height));
             relayWs.send(JSON.stringify({ type, x, y }));
           }
 

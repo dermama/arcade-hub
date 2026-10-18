@@ -191,7 +191,7 @@ async function _startSession(session) {
     timeout: 30000,
   });
 
-  // Try to auto-fill the URL field
+  // Try to auto-fill the URL field and click Start
   await _tryAutoFill(session, gameUrl);
 
   // Start screenshot streaming
@@ -201,45 +201,55 @@ async function _startSession(session) {
 async function _tryAutoFill(session, gameUrl) {
   const page = session.page;
   try {
-    // Wait for the URL input field (various selectors tried)
-    const INPUT_SEL = [
-      'input[type="url"]',
-      'input[name="url"]',
-      'input[placeholder*="url" i]',
-      'input[placeholder*="http" i]',
-      'input[placeholder*="website" i]',
-      'input[placeholder*="enter" i]',
-      'form input[type="text"]',
-    ].join(', ');
+    // Wait for the input field to be rendered (up to 15s)
+    await page.waitForFunction(() => {
+      const inp = document.querySelector('input[type="url"], input[type="text"], input[placeholder], form input');
+      return !!inp;
+    }, { timeout: 15000 });
 
-    await page.waitForSelector(INPUT_SEL, { timeout: 8000 });
-    await page.click(INPUT_SEL);
-    // Clear then type
-    await page.keyboard.down('Control');
-    await page.keyboard.press('a');
-    await page.keyboard.up('Control');
-    await page.type(INPUT_SEL.split(',')[0], gameUrl, { delay: 30 });
+    // Set input value cleanly and trigger input + change events
+    const filled = await page.evaluate((url) => {
+      const inp = document.querySelector('input[type="url"], input[type="text"], input[placeholder], form input');
+      if (!inp) return false;
+      inp.focus();
+      inp.value = url;
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+      inp.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    }, gameUrl);
 
-    _broadcast(session, { type: 'status', message: 'URL filled in. Looking for Start button…' });
+    if (filled) {
+      _broadcast(session, { type: 'status', message: 'تم إدخال الرابط، جارٍ الضغط على بدء الجلسة…' });
+    }
 
-    // Wait a moment then try to click Start / Submit
-    await _sleep(800);
-    const BTN_SEL = [
-      'button[type="submit"]',
-      'button:has-text("Start")',
-      'button:has-text("Launch")',
-      'button:has-text("Open")',
-      'input[type="submit"]',
-    ].join(', ');
+    // Wait for the Start button to appear in the DOM
+    await page.waitForFunction(() => {
+      const btns = Array.from(document.querySelectorAll('button, input[type="submit"]'));
+      return btns.some(b => b.type === 'submit' || /Start/i.test(b.innerText || ''));
+    }, { timeout: 15000 }).catch(() => null);
 
-    const btn = await page.$(BTN_SEL).catch(() => null);
-    if (btn) {
-      await btn.click();
-      _broadcast(session, { type: 'status', message: 'Clicked Start. Waiting for verification…' });
+    // Reliable click on the Start session button
+    const clicked = await page.evaluate(() => {
+      const btns = Array.from(document.querySelectorAll('button, input[type="submit"]'));
+      const startBtn = btns.find(b => {
+        const txt = (b.innerText || b.value || '').trim();
+        return b.type === 'submit' || /Start|Launch|Open/i.test(txt);
+      });
+      if (startBtn) {
+        startBtn.scrollIntoView({ block: 'center', behavior: 'instant' });
+        startBtn.click();
+        return true;
+      }
+      return false;
+    });
+
+    if (clicked) {
+      _broadcast(session, { type: 'status', message: 'تم الضغط على بدء الجلسة. بانتظار التحقق (Turnstile)…' });
+    } else {
+      _broadcast(session, { type: 'status', message: 'يرجى الضغط على زر Start Session في الشاشة.' });
     }
   } catch (e) {
-    // Auto-fill failed – user will interact manually via the stream
-    _broadcast(session, { type: 'status', message: 'Please fill in the URL and press Start.' });
+    _broadcast(session, { type: 'status', message: 'يرجى إدخال الرابط والضغط على Start Session.' });
   }
 }
 
@@ -253,6 +263,34 @@ function _startStreaming(session) {
       clearInterval(session.frameLoop);
       return;
     }
+
+    // Check page URL in case navigation happened
+    try {
+      const currentUrl = session.page.url();
+      if (currentUrl && /(?:share|vm)\/([a-z0-9-]+)/i.test(currentUrl) && !session.shareUrl) {
+        const m = currentUrl.match(/(?:share|vm)\/([a-z0-9-]+)/i);
+        session.vmId = m[1];
+        session.shareUrl = currentUrl;
+        _sessionReady(session);
+        return;
+      }
+    } catch(e) {}
+
+    // Check if any link or element points to the share session
+    try {
+      const detectedShare = await session.page.evaluate(() => {
+        const link = document.querySelector('a[href*="/share/"], a[href*="/vm/"]');
+        return link ? link.href : null;
+      });
+      if (detectedShare && !session.shareUrl) {
+        const m = detectedShare.match(/(?:share|vm)\/([a-z0-9-]+)/i);
+        session.vmId = m ? m[1] : null;
+        session.shareUrl = detectedShare;
+        _sessionReady(session);
+        return;
+      }
+    } catch(e) {}
+
     if (session.ws.size === 0) return; // nobody watching
 
     try {
