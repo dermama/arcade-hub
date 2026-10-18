@@ -13,4 +13,5 @@ window.ARCADE = {
   proxyBase: 'https://gateway.arcade22cf2.workers.dev'
 };
 // Set your relay bot URL here (or inject it at deploy time):
-window.CLOUD_BOT_URL = '';
+window.CLOUD_BOT_URL = 'https://hannicall-antigravity-lite.hf.space';
+
