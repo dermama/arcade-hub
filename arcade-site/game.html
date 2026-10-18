@@ -6,7 +6,7 @@
   <script>
     /* Arcade Cache & Service Worker Manager */
     (function () {
-      var B = "v42";
+      var B = "v43";
       function purge() {
         try { if (window.caches && caches.keys) caches.keys().then(function (k) { k.forEach(function (n) { caches.delete(n); }); }); } catch (e) { }
         try { if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) navigator.serviceWorker.getRegistrations().then(function (r) { r.forEach(function (s) { s.unregister(); }); }); } catch (e) { }
@@ -40,11 +40,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://gateway.arcade22cf2.workers.dev" crossorigin>
+  <link rel="preconnect" href="https://browser.lol">
   <link rel="dns-prefetch" href="https://gateway.arcade22cf2.workers.dev">
   <link
     href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=42">
+  <link rel="stylesheet" href="/styles.css?v=43">
 </head>
 
 <body>
@@ -196,11 +197,11 @@
           </div>
         </div>
 
-        <!-- CLOUD VIEW (v42): browser.lol fills the entire player area — no bars,
-             no buttons, no displacement. One press on "Cloud" copies the current
-             page URL and zooms toward the Start-session spot; pressing again (or
-             touching the site) returns a clean, full, un-zoomed view.
-             The legacy Puppeteer canvas stays hidden below (bot relay disabled). -->
+        <!-- CLOUD VIEW (v43): one press on "Cloud" shows browser.lol/en/create
+             live inside the player area, filling it completely — no bars, no
+             zoom, no extra behavior, no displacement. Pressing again returns
+             to the game. The legacy Puppeteer canvas stays hidden below
+             (bot relay disabled). -->
         <div id="relay-overlay" class="relay-overlay" style="display:none;">
           <div class="relay-frame-wrap" id="relay-frame-wrap" style="display:none;">
             <iframe id="relay-frame" class="relay-frame" title="browser.lol create session"
@@ -316,7 +317,7 @@
         Clear cache &amp; update</button></p>
   </footer>
 
-  <script src="/config.js?v=42"></script>
+  <script src="/config.js?v=43"></script>
   <script>
     (function () {
       /* ── helpers ── */
@@ -633,7 +634,7 @@
         }
 
         /* ── Relay Stream (Puppeteer VNC-lite) ──────────────────────────────
-           ⏸️ مؤجّلة مؤقتاً (أمر المستخدم 2026-10-18): نمط v42 المبسّط مفعّل
+           ⏸️ مؤجّلة مؤقتاً (أمر المستخدم 2026-10-18): نمط v43 المبسّط مفعّل
            بدلاً منها (زر "سحابة" ← نسخ + تقريب نحو Start). هذا الكود محفوظ
            كما هو — لا يُحذف. للتفعيل مجدداً: BOT_RELAY_TEMP_DISABLED = false. */
         let BOT_RELAY_TEMP_DISABLED = true; /* ⏸️ معلّق مؤقتاً — أبقِه true */
@@ -645,7 +646,7 @@
           $('relay-overlay').style.display = 'none';
         }
 
-        /* v42: عناصر الشريط العلوي/الأدوات/التلميح أُزيلت من الـDOM بطلب المستخدم
+        /* v43: عناصر الشريط العلوي/الأدوات/التلميح أُزيلت من الـDOM بطلب المستخدم
            (شاشة نظيفة بلا أي شرائط). هذا الحارس يُبقي كود البوت المحفوظ آمناً إن
            أُعيد تفعيله لاحقاً — يتجاهل الكتابة إذا كان العنصر غير موجود. */
         function relayStatusSet(msg) {
@@ -875,103 +876,26 @@
           cloudBtn.disabled = false;
         }
 
-        /* ══ v42: شاشة سحابة نظيفة — بلا شرائط وبلا إزاحة ═══════════════════
-           موقع browser.lol يملأ مكان اللعبة كاملاً. السلوك الوحيد المطلوب:
-           • ضغطة على "سحابة": نسخ رابط الصفحة الحالية (ليس رابط اللعبة) +
-             فتح browser.lol + تقريب نحو زر Start الأصلي.
-             (قياس حقيقي: عرض 390 → الزر عند y≈1335؛ تم التحقق أن التخطيط
-              لا يتأثر بارتفاع الإطار عند 844 و1600 — ثابت.)
-           • ضغطة ثانية أثناء التقريب ← عرض طبيعي كامل.
-           • لمس داخل الموقع أثناء التقريب ← عرض طبيعي (يشمل لمس زر Start).
-           • أي انتقال داخل الإطار بعد التحميل الأول ← عرض طبيعي (بدأت الجلسة).
-           • ضغطة مطولة 700ms على "سحابة" ← إغلاق الشاشة (مخرج آمن).
-           حقائق موثّقة: browser.lol يقبل التضمين، لا يدعم تعبئة الرابط مسبقاً،
-           وcross-origin يمنع اللصق البرمجي → اللصق يدوي دائماً. */
+        /* ══ v43: عرض مباشر ونظيف (بأمر المستخدم 2026-10-18) ════════════════
+           لا نسخ، لا تقريب، لا شرائط، لا رسائل — فقط:
+           ضغطة على "سحابة" ← يُعرض موقع browser.lol/en/create مباشرةً حيّاً
+           داخل مكان اللعبة بملء كامل بلا أي ازتحات، وضغطة أخرى ← رجوع للعبة.
+           الجلسة تبقى محمّلة داخل الإطار عند الفتح التالي (لا إعادة تحميل). */
         const relayFrame = $('relay-frame');
-        let relayFrameLoads = 0;
-        let relayZoomed    = false;
-        const RELAY_S  = 1.5;   /* مقدار التقريب نحو زر Start */
-        const RELAY_PX = 195;   /* مركز زر Start أفقياً (صفحة بعرض 390px) */
-        const RELAY_PY = 1290;  /* منطقة زر Start عمودياً (قياس ثابت من الصفحة) */
 
-        function relayZoomNormal() {
-          if (!relayFrame) return;
-          relayZoomed = false;
-          relayFrame.style.transform = '';
-        }
-
-        function relayZoomStart() {
-          const wrap = $('relay-frame-wrap');
-          if (!relayFrame || !wrap || !wrap.clientHeight) return;
-          const H  = wrap.clientHeight;
-          const tx = RELAY_PX * (1 - RELAY_S);       /* الإطار ممركز أفقياً */
-          const ty = (H / 2) - (RELAY_PY * RELAY_S); /* منطقة Start في المنتصف */
-          relayZoomed = true;
-          relayFrame.style.transform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' + RELAY_S + ')';
-        }
-
-        if (relayFrame) {
-          relayFrame.addEventListener('load', () => {
-            const overlay = $('relay-overlay');
-            if (!overlay || overlay.style.display === 'none') return;
-            if (relayFrame.src.indexOf('about:blank') !== -1) return;
-            relayFrameLoads++;
-            if (relayFrameLoads === 1) {
-              relayZoomStart(); /* اكتمل فتح الصفحة ← تقريب نحو زر Start */
-            } else {
-              relayZoomNormal(); /* أي انتقال لاحق = بدأت الجلسة ← عرض طبيعي */
-            }
-          });
-        }
-
-        /* لمس داخل الموقع أثناء التقريب ← إرجاع فوري للعرض الطبيعي الكامل */
-        window.addEventListener('blur', () => {
-          const overlay = $('relay-overlay');
-          if (relayZoomed && overlay && overlay.style.display !== 'none' &&
-              document.activeElement === relayFrame) {
-            relayZoomNormal();
-          }
-        });
-
-        /* ضغطة زر "سحابة": نسخ رابط الصفحة + فتح/تقريب أو إرجاع طبيعي */
         function cloudWizardPress() {
           const overlay = $('relay-overlay');
           if (!overlay || !relayFrame) return;
-
-          if (overlay.style.display !== 'none' && relayZoomed) {
-            relayZoomNormal(); /* ضغطة ثانية أثناء التقريب ← عرض طبيعي */
-            return;
-          }
-
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(window.location.href).then(
-              () => showToast('✅ تم نسخ رابط الصفحة — الصقه في حقل الصفحة.'),
-              () => showToast('⚠️ تعذّر النسخ — انسخ الرابط من شريط العنوان.', true)
-            );
-          } else {
-            showToast('⚠️ انسخ الرابط من شريط العنوان.', true);
-          }
-
           if (overlay.style.display === 'none') {
             $('relay-frame-wrap').style.display = 'block';
             $('relay-canvas-wrap').style.display = 'none';
             overlay.style.display = 'flex';
             if (relayFrame.src.indexOf('browser.lol') === -1) {
-              relayFrameLoads = 0;
-              /* hash اختياري لمالكي الإضافة (تعبئة تلقائية) — يُتجاهل بدونها */
-              relayFrame.src = 'https://browser.lol/en/create#' + encodeURIComponent(window.location.href);
-              return; /* التقريب يصير عند اكتمال التحميل */
+              relayFrame.src = 'https://browser.lol/en/create';
             }
+          } else {
+            overlay.style.display = 'none';
           }
-          relayZoomStart();
-        }
-
-        function cloudWizardClose() {
-          const overlay = $('relay-overlay');
-          if (!overlay || overlay.style.display === 'none') return;
-          relayZoomNormal();
-          overlay.style.display = 'none';
-          showToast('☁️ أُغلقت شاشة السحابة — الجلسة محفوظة.');
         }
 
         // Cloud HUD actions
@@ -1021,24 +945,8 @@
           });
         }
 
-        /* ضغطة مطولة (700ms) على "سحابة" ← إغلاق شاشة السحابة (مخرج آمن) */
-        let cloudHoldTimer = null;
-        let cloudHoldFired = false;
-        if (cloudBtn) {
-          cloudBtn.addEventListener('pointerdown', () => {
-            cloudHoldFired = false;
-            cloudHoldTimer = setTimeout(() => { cloudHoldFired = true; cloudHoldTimer = null; cloudWizardClose(); }, 700);
-          });
-          ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev =>
-            cloudBtn.addEventListener(ev, () => {
-              if (cloudHoldTimer) { clearTimeout(cloudHoldTimer); cloudHoldTimer = null; }
-            }));
-          cloudBtn.addEventListener('contextmenu', e => e.preventDefault());
-        }
-
         if (cloudBtn) {
           cloudBtn.addEventListener('click', () => {
-            if (cloudHoldFired) { cloudHoldFired = false; return; }
             if (cloudActive) {
               cloudStop(false);
               if (cloudPoll) { clearInterval(cloudPoll); cloudPoll = null; }
@@ -1049,9 +957,9 @@
               $('play-status').textContent = `${title} is running`;
               showToast('Switched back to local play.');
             } else {
-              /* v42: نسخ رابط الصفحة + فتح browser.lol في مكان اللعبة.
-                 الكود القديم المباشر cloudStart() (بوت/gateway/hash) محفوظ
-                 بمكانه لكنه غير مُستدعى — انظر BOT_RELAY_TEMP_DISABLED. */
+              /* v43: عرض مباشر لموقع browser.lol داخل مكان اللعبة.
+                 زر "سحابة": ضغطة تفتح العرض، وضغطة أخرى ترجع للعبة.
+                 الكود القديم cloudStart (بوت/gateway) محفوظ بلا استدعاء. */
               cloudWizardPress();
             }
           });

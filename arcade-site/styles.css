@@ -960,14 +960,10 @@ html.arc-low .cloud-hud {
   position: relative; flex: 1; width: 100%; overflow: hidden; background: #fff;
 }
 .relay-frame {
-  /* v42: عرض ثابت شبيه بالجوال (تخطيط مقيس: زر Start عند x≈195/y≈1335)
-     وارتفاع يمتد تحت الشاشة؛ الإطار الأب يقص الزائد (overflow:hidden)
-     فلا تمرير ولا إزاحة. transform يُدار من JS (تقريب/إرجاع). */
-  position: absolute; top: 0; left: calc(50% - 195px);
-  width: 390px; height: 1600px;
+  /* v43: عرض مباشر — الإطار يملأ مكان اللعبة بالكامل بلا أي تحويلات،
+     والموقع يُعرض بتخطيطه الحقيقي تلقائياً بلا ازتحات. */
+  position: absolute; inset: 0; width: 100%; height: 100%;
   border: 0; background: #fff;
-  transform-origin: 0 0;
-  transition: transform .35s ease;
 }
 @media (max-width: 768px) {
   .relay-tools { padding: 6px 10px; gap: 6px; }

@@ -211,7 +211,7 @@ runTest('Cloudflare Worker has Edge Caching configuration enabled', () => {
 runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
   assert(workerCode.includes('Cache-Control", "public, max-age=604800, immutable"'), 'Static game assets must have immutable cache headers');
   assert(workerCode.includes('Cache-Control", "no-cache, no-store, must-revalidate"'), 'HTML documents must not be stale-cached');
-  assert(workerCode.includes('__shim.js?v=42'), 'Shim tag version must match latest build v42');
+  assert(workerCode.includes('__shim.js?v=43'), 'Shim tag version must match latest build v43');
 });
 
 // -------------------------------------------------------------------
@@ -220,7 +220,7 @@ runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
 console.log('\n▶ [Axis 7]: Testing Service Worker Offline & Tiered Caching Strategy...');
 
 runTest('Service Worker contains Tiered Cache configuration', () => {
-  assert(swCode.includes("VERSION = 'v42'"), 'Service worker should be synced to v42');
+  assert(swCode.includes("VERSION = 'v43'"), 'Service worker should be synced to v43');
   assert(swCode.includes('SHELL_CACHE'), 'App shell cache should be defined');
   assert(swCode.includes('GAME_CACHE'), 'Runtime game cache should be defined');
   assert(swCode.includes('IMG_CACHE'), 'Image cache should be defined');
@@ -242,18 +242,18 @@ runTest('Service Worker pre-caching is resilient to individual 404s', () => {
 // -------------------------------------------------------------------
 console.log('\n▶ [Axis 8, 10, 11]: Testing Client HTML/CSS Architecture & Lifecycle...');
 
-runTest('index.html registers Service Worker, preconnects, and uses unified v42 scripts', () => {
+runTest('index.html registers Service Worker, preconnects, and uses unified v43 scripts', () => {
   assert(indexHtml.includes('navigator.serviceWorker.register("/sw.js"'), 'SW registration must be present');
   assert(indexHtml.includes('rel="preconnect" href="https://gateway.arcade22cf2.workers.dev"'), 'Gateway preconnect must be present');
-  assert(indexHtml.includes('/app.js?v=42'), 'app.js must be unified to v=41');
-  assert(indexHtml.includes('/config.js?v=42'), 'config.js must be unified to v=41');
+  assert(indexHtml.includes('/app.js?v=43'), 'app.js must be unified to v=43');
+  assert(indexHtml.includes('/config.js?v=43'), 'config.js must be unified to v=43');
 });
 
-runTest('game.html sandbox attributes, preconnect, memory cleanup, and v42 links', () => {
+runTest('game.html sandbox attributes, preconnect, memory cleanup, and v43 links', () => {
   assert(gameHtml.includes('sandbox="allow-scripts allow-same-origin allow-pointer-lock'), 'Sandbox attributes must be enforced on iframe');
   assert(gameHtml.includes("addEventListener('pagehide'"), 'Pagehide event listener must be present');
   assert(gameHtml.includes("frame.src = 'about:blank'"), 'Iframe must be blanked on pagehide to purge RAM/VRAM');
-  assert(gameHtml.includes('/config.js?v=42'), 'config.js in game.html must be unified to v=41');
+  assert(gameHtml.includes('/config.js?v=43'), 'config.js in game.html must be unified to v=43');
   assert(gameHtml.includes("v=38'"), 'game url query must be unified to v=38');
 });
 
