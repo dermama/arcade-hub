@@ -6,7 +6,7 @@
   <script>
     /* Arcade Cache & Service Worker Manager */
     (function () {
-      var B = "v43";
+      var B = "v44";
       function purge() {
         try { if (window.caches && caches.keys) caches.keys().then(function (k) { k.forEach(function (n) { caches.delete(n); }); }); } catch (e) { }
         try { if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) navigator.serviceWorker.getRegistrations().then(function (r) { r.forEach(function (s) { s.unregister(); }); }); } catch (e) { }
@@ -45,7 +45,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=43">
+  <link rel="stylesheet" href="/styles.css?v=44">
 </head>
 
 <body>
@@ -197,10 +197,12 @@
           </div>
         </div>
 
-        <!-- CLOUD VIEW (v43): one press on "Cloud" shows browser.lol/en/create
-             live inside the player area, filling it completely — no bars, no
-             zoom, no extra behavior, no displacement. Pressing again returns
-             to the game. The legacy Puppeteer canvas stays hidden below
+        <!-- CLOUD VIEW (v44): one press on "Cloud" shows browser.lol/en/create
+             live inside the player area, always rendered in full desktop
+             layout: the frame runs at a 1280px desktop viewport and is scaled
+             to fill the area (like a browser's "Desktop site" mode) on every
+             device, with no button needed. Pressing again returns to the
+             game. The legacy Puppeteer canvas stays hidden below
              (bot relay disabled). -->
         <div id="relay-overlay" class="relay-overlay" style="display:none;">
           <div class="relay-frame-wrap" id="relay-frame-wrap" style="display:none;">
@@ -317,7 +319,7 @@
         Clear cache &amp; update</button></p>
   </footer>
 
-  <script src="/config.js?v=43"></script>
+  <script src="/config.js?v=44"></script>
   <script>
     (function () {
       /* ── helpers ── */
@@ -634,8 +636,8 @@
         }
 
         /* ── Relay Stream (Puppeteer VNC-lite) ──────────────────────────────
-           ⏸️ مؤجّلة مؤقتاً (أمر المستخدم 2026-10-18): نمط v43 المبسّط مفعّل
-           بدلاً منها (زر "سحابة" ← نسخ + تقريب نحو Start). هذا الكود محفوظ
+           ⏸️ مؤجّلة مؤقتاً (أمر المستخدم 2026-10-18): نمط v44 المبسّط مفعّل
+           بدلاً منها (زر "سحابة" ← عرض browser.lol مباشرةً بتخطيط الكمبيوتر). هذا الكود محفوظ
            كما هو — لا يُحذف. للتفعيل مجدداً: BOT_RELAY_TEMP_DISABLED = false. */
         let BOT_RELAY_TEMP_DISABLED = true; /* ⏸️ معلّق مؤقتاً — أبقِه true */
         const BOT_URL = (window.CLOUD_BOT_URL || '').replace(/\/$/, '');
@@ -646,7 +648,7 @@
           $('relay-overlay').style.display = 'none';
         }
 
-        /* v43: عناصر الشريط العلوي/الأدوات/التلميح أُزيلت من الـDOM بطلب المستخدم
+        /* v44: عناصر الشريط العلوي/الأدوات/التلميح أُزيلت من الـDOM بطلب المستخدم
            (شاشة نظيفة بلا أي شرائط). هذا الحارس يُبقي كود البوت المحفوظ آمناً إن
            أُعيد تفعيله لاحقاً — يتجاهل الكتابة إذا كان العنصر غير موجود. */
         function relayStatusSet(msg) {
@@ -876,12 +878,25 @@
           cloudBtn.disabled = false;
         }
 
-        /* ══ v43: عرض مباشر ونظيف (بأمر المستخدم 2026-10-18) ════════════════
-           لا نسخ، لا تقريب، لا شرائط، لا رسائل — فقط:
-           ضغطة على "سحابة" ← يُعرض موقع browser.lol/en/create مباشرةً حيّاً
-           داخل مكان اللعبة بملء كامل بلا أي ازتحات، وضغطة أخرى ← رجوع للعبة.
-           الجلسة تبقى محمّلة داخل الإطار عند الفتح التالي (لا إعادة تحميل). */
+        /* ══ v44: عرض كمبيوتر دائم (بأمر المستخدم 2026-10-18) ═══════════════
+           ضغطة على "سحابة" ← يُعرض browser.lol/en/create مباشرةً حيّاً داخل
+           مكان اللعبة، ودائماً بتخطيط الكمبيوتر الكامل: الإطار يعمل بمنفذ
+           سطح مكتب 1280px ثم يُصغَّر بـtransform ليملأ المكان — تماماً مثل
+           "عرض نسخة سطح المكتب" في المتصفح، تلقائياً وبلا أي زر.
+           ضغطة أخرى ← رجوع للعبة. الجلسة تبقى محمّلة (لا إعادة تحميل). */
         const relayFrame = $('relay-frame');
+        const RELAY_DESKTOP_W = 1280;
+
+        function fitRelayDesktop() {
+          const wrap = $('relay-frame-wrap');
+          if (!wrap || !relayFrame) return;
+          const r = wrap.getBoundingClientRect();
+          if (!r.width || !r.height) return;
+          const s = r.width / RELAY_DESKTOP_W;
+          relayFrame.style.width = RELAY_DESKTOP_W + 'px';
+          relayFrame.style.height = Math.round(r.height / s) + 'px';
+          relayFrame.style.transform = 'scale(' + s + ')';
+        }
 
         function cloudWizardPress() {
           const overlay = $('relay-overlay');
@@ -890,6 +905,7 @@
             $('relay-frame-wrap').style.display = 'block';
             $('relay-canvas-wrap').style.display = 'none';
             overlay.style.display = 'flex';
+            fitRelayDesktop();
             if (relayFrame.src.indexOf('browser.lol') === -1) {
               relayFrame.src = 'https://browser.lol/en/create';
             }
@@ -897,6 +913,11 @@
             overlay.style.display = 'none';
           }
         }
+
+        window.addEventListener('resize', () => {
+          const overlay = $('relay-overlay');
+          if (overlay && overlay.style.display === 'flex') fitRelayDesktop();
+        });
 
         // Cloud HUD actions
         let cloudFocused = true;
@@ -957,7 +978,7 @@
               $('play-status').textContent = `${title} is running`;
               showToast('Switched back to local play.');
             } else {
-              /* v43: عرض مباشر لموقع browser.lol داخل مكان اللعبة.
+              /* v44: عرض مباشر لموقع browser.lol داخل مكان اللعبة.
                  زر "سحابة": ضغطة تفتح العرض، وضغطة أخرى ترجع للعبة.
                  الكود القديم cloudStart (بوت/gateway) محفوظ بلا استدعاء. */
               cloudWizardPress();

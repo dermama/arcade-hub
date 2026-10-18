@@ -960,10 +960,14 @@ html.arc-low .cloud-hud {
   position: relative; flex: 1; width: 100%; overflow: hidden; background: #fff;
 }
 .relay-frame {
-  /* v43: عرض مباشر — الإطار يملأ مكان اللعبة بالكامل بلا أي تحويلات،
-     والموقع يُعرض بتخطيطه الحقيقي تلقائياً بلا ازتحات. */
-  position: absolute; inset: 0; width: 100%; height: 100%;
+  /* v44: عرض كمبيوتر دائم — الإطار يعمل بمنفذ سطح مكتب 1280px ويُصغَّر
+     بـtransform ليملأ المكان بالكامل، فيُعرض browser.lol دائماً بتخطيط
+     الكمبيوتر (مثل "عرض نسخة سطح المكتب") على كل الأجهزة وبلا أي زر.
+     القيم الفعلية (width/height/transform) يعيّنها fitRelayDesktop. */
+  position: absolute; top: 0; left: 0;
+  width: 1280px; height: 720px;
   border: 0; background: #fff;
+  transform-origin: 0 0;
 }
 @media (max-width: 768px) {
   .relay-tools { padding: 6px 10px; gap: 6px; }
