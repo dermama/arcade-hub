@@ -6,7 +6,7 @@
   <script>
     /* Arcade Cache & Service Worker Manager */
     (function () {
-      var B = "v41";
+      var B = "v42";
       function purge() {
         try { if (window.caches && caches.keys) caches.keys().then(function (k) { k.forEach(function (n) { caches.delete(n); }); }); } catch (e) { }
         try { if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) navigator.serviceWorker.getRegistrations().then(function (r) { r.forEach(function (s) { s.unregister(); }); }); } catch (e) { }
@@ -44,7 +44,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=41">
+  <link rel="stylesheet" href="/styles.css?v=42">
 </head>
 
 <body>
@@ -98,15 +98,6 @@
                 d="M19.35 10.04A7.49 7.49 0 0012 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 000 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z" />
             </svg>
             <span id="cloud-label">Cloud</span>
-          </button>
-          <!-- v41 merged cloud flow: re-open the browser.lol wizard any time -->
-          <button class="btn" id="btn-cloud-init" style="display:none;"
-            title="فتح browser.lol من جديد (الرابط منسوخ مسبقاً)">
-            <svg viewBox="0 0 24 24">
-              <path
-                d="M12 2l2.4 7.2H22l-6 4.6 2.3 7.2-6.3-4.5-6.3 4.5 2.3-7.2-6-4.6h7.6z" />
-            </svg>
-            <span id="cloud-init-label">تهيئة الجلسة</span>
           </button>
           <button class="btn" id="btn-theater" title="Theater Mode (Expand View)">
             <svg viewBox="0 0 24 24">
@@ -205,24 +196,12 @@
           </div>
         </div>
 
-        <!-- MERGED CLOUD OVERLAY (v41): iframe wizard around browser.lol/en/create.
-             The legacy Puppeteer canvas stays hidden below (bot relay temporarily disabled). -->
+        <!-- CLOUD VIEW (v42): browser.lol fills the entire player area — no bars,
+             no buttons, no displacement. One press on "Cloud" copies the current
+             page URL and zooms toward the Start-session spot; pressing again (or
+             touching the site) returns a clean, full, un-zoomed view.
+             The legacy Puppeteer canvas stays hidden below (bot relay disabled). -->
         <div id="relay-overlay" class="relay-overlay" style="display:none;">
-          <div class="relay-topbar">
-            <span class="relay-topbar-title">☁️ تهيئة الجلسة</span>
-            <span id="relay-status" class="relay-status">جارٍ التحميل…</span>
-            <button id="btn-relay-external" class="btn btn-sm relay-external" type="button"
-              title="فتح browser.lol في تبويب مستقل">↗ تبويب مستقل</button>
-            <button id="btn-relay-cancel" class="btn btn-sm relay-cancel" type="button">إغلاق</button>
-          </div>
-          <div class="relay-tools" id="relay-tools">
-            <button class="btn btn-sm relay-tool pri" id="btn-zoom-field" type="button"
-              title="تقريب على مكان لصق الرابط">1️⃣ مكان اللصق</button>
-            <button class="btn btn-sm relay-tool" id="btn-zoom-start" type="button"
-              title="تقريب على زر بدء الجلسة الأصلي">2️⃣ زر البدء ▸</button>
-            <button class="btn btn-sm relay-tool" id="btn-zoom-full" type="button"
-              title="ملء الشاشة (إظهار كل الصفحة)">⤢ ملء</button>
-          </div>
           <div class="relay-frame-wrap" id="relay-frame-wrap" style="display:none;">
             <iframe id="relay-frame" class="relay-frame" title="browser.lol create session"
               allow="clipboard-read; clipboard-write; fullscreen; autoplay; gamepad; pointer-lock"
@@ -230,9 +209,6 @@
           </div>
           <div class="relay-canvas-wrap" id="relay-canvas-wrap" style="display:none;">
             <canvas id="relay-canvas" class="relay-canvas"></canvas>
-          </div>
-          <div class="relay-hint" id="relay-hint">
-            1) الصق الرابط في حقل الإدخال (اضغط مطولاً ← لصق) · 2) اضغط زر Start الأصلي في الصفحة
           </div>
         </div>
 
@@ -340,7 +316,7 @@
         Clear cache &amp; update</button></p>
   </footer>
 
-  <script src="/config.js?v=41"></script>
+  <script src="/config.js?v=42"></script>
   <script>
     (function () {
       /* ── helpers ── */
@@ -657,9 +633,9 @@
         }
 
         /* ── Relay Stream (Puppeteer VNC-lite) ──────────────────────────────
-           ⏸️ مؤجّلة مؤقتاً (أمر المستخدم 2026-10-18): النمط المدمج v41 مفعّل
-           بدلاً منها داخل cloudStart. هذا الكود محفوظ كما هو — لا يُحذف.
-           للتفعيل مجدداً: اجعل BOT_RELAY_TEMP_DISABLED = false (في cloudStart). */
+           ⏸️ مؤجّلة مؤقتاً (أمر المستخدم 2026-10-18): نمط v42 المبسّط مفعّل
+           بدلاً منها (زر "سحابة" ← نسخ + تقريب نحو Start). هذا الكود محفوظ
+           كما هو — لا يُحذف. للتفعيل مجدداً: BOT_RELAY_TEMP_DISABLED = false. */
         let BOT_RELAY_TEMP_DISABLED = true; /* ⏸️ معلّق مؤقتاً — أبقِه true */
         const BOT_URL = (window.CLOUD_BOT_URL || '').replace(/\/$/, '');
         let relayWs = null, relaySessionId = null, relayImg = new Image();
@@ -667,6 +643,14 @@
         function relayClose() {
           if (relayWs) { try { relayWs.close(); } catch(e){} relayWs = null; }
           $('relay-overlay').style.display = 'none';
+        }
+
+        /* v42: عناصر الشريط العلوي/الأدوات/التلميح أُزيلت من الـDOM بطلب المستخدم
+           (شاشة نظيفة بلا أي شرائط). هذا الحارس يُبقي كود البوت المحفوظ آمناً إن
+           أُعيد تفعيله لاحقاً — يتجاهل الكتابة إذا كان العنصر غير موجود. */
+        function relayStatusSet(msg) {
+          const el = $('relay-status');
+          if (el) el.textContent = msg;
         }
 
         function relayOpen(sessionId) {
@@ -677,10 +661,10 @@
 
           $('relay-frame-wrap').style.display = 'none';
           $('relay-canvas-wrap').style.display = 'flex';
-          $('relay-tools').style.display = 'none';
-          $('relay-hint').textContent = 'انقر على صفحة التحقق أعلاه لتأكيد أنك إنسان ← يتم فتح الجلسة تلقائياً بعدها';
+          const rtEl = $('relay-tools'); if (rtEl) rtEl.style.display = 'none';
+          const rhEl = $('relay-hint'); if (rhEl) rhEl.textContent = 'انقر على صفحة التحقق أعلاه لتأكيد أنك إنسان ← يتم فتح الجلسة تلقائياً بعدها';
           overlay.style.display = 'flex';
-          $('relay-status').textContent = 'جارٍ الاتصال بالخادم…';
+          relayStatusSet('جارٍ الاتصال بالخادم…');
 
           const wsProto = BOT_URL.startsWith('https') ? 'wss' : 'ws';
           const wsUrl   = BOT_URL.replace(/^https?/, wsProto)
@@ -688,7 +672,7 @@
           relayWs = new WebSocket(wsUrl);
 
           relayWs.onopen = () => {
-            $('relay-status').textContent = 'متصل — الصفحة تُحمَّل، انتظر لحظة…';
+            relayStatusSet('متصل — الصفحة تُحمَّل، انتظر لحظة…');
           };
 
           relayWs.onmessage = (e) => {
@@ -707,10 +691,10 @@
                 };
                 relayImg.src = 'data:image/jpeg;base64,' + msg.data;
               } else if (msg.type === 'status') {
-                $('relay-status').textContent = msg.message || '';
+                relayStatusSet(msg.message || '');
               } else if (msg.type === 'state') {
                 if (msg.state === 'streaming') {
-                  $('relay-status').textContent = 'الصفحة جاهزة — أكمل التحقق من أنك إنسان';
+                  relayStatusSet('الصفحة جاهزة — أكمل التحقق من أنك إنسان');
                 }
               } else if (msg.type === 'ready') {
                 // Turnstile passed — load the real Browser.lol viewer
@@ -749,12 +733,12 @@
           };
 
           relayWs.onerror = () => {
-            $('relay-status').textContent = '⚠️ انقطع الاتصال بالخادم';
+            relayStatusSet('⚠️ انقطع الاتصال بالخادم');
           };
 
           relayWs.onclose = () => {
             if ($('relay-overlay').style.display !== 'none') {
-              $('relay-status').textContent = 'انتهت الجلسة.';
+              relayStatusSet('انتهت الجلسة.');
             }
           };
 
@@ -891,57 +875,39 @@
           cloudBtn.disabled = false;
         }
 
-        /* ══ v41: Merged Cloud Flow (النمط المدمج — بدون بوت) ═══════════════
-           ضغطة واحدة على "سحابة":
-           1) ينسخ رابط اللعبة إلى الحافظة فوراً
-           2) يفتح browser.lol/en/create داخل overlay — الموقع يُحمَّل أمامك
-           3) أنت: ضغطة مطولة في الحقل ← لصق، ثم اضغط زر Start الأصلي
-           4) أي انتقال داخل الإطار بعد Start → الحالة تصبح "بدأت الجلسة"
-           أزرار تقريب يدوية (مكان اللصق / زر البدء / ملء) + "↗ تبويب مستقل".
-           حقائق موثّقة: browser.lol يقبل التضمين (لا frame-busting)، لا يدعم
-           تعبئة الرابط مسبقاً، وcross-origin يمنع اللصق البرمجي → اللصق يدوي. */
+        /* ══ v42: شاشة سحابة نظيفة — بلا شرائط وبلا إزاحة ═══════════════════
+           موقع browser.lol يملأ مكان اللعبة كاملاً. السلوك الوحيد المطلوب:
+           • ضغطة على "سحابة": نسخ رابط الصفحة الحالية (ليس رابط اللعبة) +
+             فتح browser.lol + تقريب نحو زر Start الأصلي.
+             (قياس حقيقي: عرض 390 → الزر عند y≈1335؛ تم التحقق أن التخطيط
+              لا يتأثر بارتفاع الإطار عند 844 و1600 — ثابت.)
+           • ضغطة ثانية أثناء التقريب ← عرض طبيعي كامل.
+           • لمس داخل الموقع أثناء التقريب ← عرض طبيعي (يشمل لمس زر Start).
+           • أي انتقال داخل الإطار بعد التحميل الأول ← عرض طبيعي (بدأت الجلسة).
+           • ضغطة مطولة 700ms على "سحابة" ← إغلاق الشاشة (مخرج آمن).
+           حقائق موثّقة: browser.lol يقبل التضمين، لا يدعم تعبئة الرابط مسبقاً،
+           وcross-origin يمنع اللصق البرمجي → اللصق يدوي دائماً. */
         const relayFrame = $('relay-frame');
         let relayFrameLoads = 0;
+        let relayZoomed    = false;
+        const RELAY_S  = 1.5;   /* مقدار التقريب نحو زر Start */
+        const RELAY_PX = 195;   /* مركز زر Start أفقياً (صفحة بعرض 390px) */
+        const RELAY_PY = 1290;  /* منطقة زر Start عمودياً (قياس ثابت من الصفحة) */
 
-        const RELAY_ZOOMS = {
-          field: { scale: 1.9, origin: '50% 40%' },
-          start: { scale: 1.9, origin: '50% 86%' },
-          full:  { scale: 1,   origin: '50% 50%' }
-        };
-        function relayZoom(preset) {
-          const z = RELAY_ZOOMS[preset];
-          if (!z || !relayFrame) return;
-          relayFrame.style.transformOrigin = z.origin;
-          relayFrame.style.transform = 'scale(' + z.scale + ')';
-          [['btn-zoom-field', 'field'], ['btn-zoom-start', 'start'], ['btn-zoom-full', 'full']]
-            .forEach(function (pair) {
-              const el = $(pair[0]);
-              if (el) el.classList.toggle('pri', pair[1] === preset);
-            });
+        function relayZoomNormal() {
+          if (!relayFrame) return;
+          relayZoomed = false;
+          relayFrame.style.transform = '';
         }
 
-        function cloudInitOpen() {
-          const overlay = $('relay-overlay');
-          if (!overlay || !relayFrame) return;
-          const targetUrl = getAbsoluteGameUrl();
-
-          $('relay-frame-wrap').style.display = 'block';
-          $('relay-canvas-wrap').style.display = 'none';
-          $('relay-tools').style.display = 'flex';
-          $('relay-hint').innerHTML = '1) اضغط مطولاً في الحقل ← لصق · 2) اضغط <b>2️⃣ زر البدء</b> لرؤية زر Start ثم اضغطه في الصفحة';
-          overlay.style.display = 'flex';
-          relayZoom('full');
-
-          if (relayFrame.src.indexOf('browser.lol') === -1) {
-            /* First open: reset the counter and load the create page */
-            relayFrameLoads = 0;
-            $('relay-status').textContent = 'جارٍ فتح موقع السحابة…';
-            /* Hash bonus: userscript users get auto-fill + auto-start; ignored otherwise */
-            relayFrame.src = 'https://browser.lol/en/create#' + encodeURIComponent(targetUrl);
-          } else {
-            /* Already loaded — just bring the wizard back (session kept alive) */
-            $('relay-status').textContent = 'الرابط في الحافظة ✓ — الصقه في الحقل ثم اضغط Start';
-          }
+        function relayZoomStart() {
+          const wrap = $('relay-frame-wrap');
+          if (!relayFrame || !wrap || !wrap.clientHeight) return;
+          const H  = wrap.clientHeight;
+          const tx = RELAY_PX * (1 - RELAY_S);       /* الإطار ممركز أفقياً */
+          const ty = (H / 2) - (RELAY_PY * RELAY_S); /* منطقة Start في المنتصف */
+          relayZoomed = true;
+          relayFrame.style.transform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' + RELAY_S + ')';
         }
 
         if (relayFrame) {
@@ -951,49 +917,61 @@
             if (relayFrame.src.indexOf('about:blank') !== -1) return;
             relayFrameLoads++;
             if (relayFrameLoads === 1) {
-              /* create page loaded — stay in full view; the user acts next */
-              $('relay-status').textContent = 'الرابط في الحافظة ✓ — الصقه في الحقل ثم اضغط Start';
+              relayZoomStart(); /* اكتمل فتح الصفحة ← تقريب نحو زر Start */
             } else {
-              /* full navigation after submit → session is starting/running */
-              $('relay-status').textContent = '✅ بدأت الجلسة — شاشة اللعب تُحمَّل…';
-              relayZoom('full');
-              showToast('✅ بدأت الجلسة السحابية!');
+              relayZoomNormal(); /* أي انتقال لاحق = بدأت الجلسة ← عرض طبيعي */
             }
           });
         }
 
-        $('btn-zoom-field') && $('btn-zoom-field').addEventListener('click', () => relayZoom('field'));
-        $('btn-zoom-start') && $('btn-zoom-start').addEventListener('click', () => relayZoom('start'));
-        $('btn-zoom-full')  && $('btn-zoom-full').addEventListener('click',  () => relayZoom('full'));
-
-        $('btn-relay-external') && $('btn-relay-external').addEventListener('click', () => {
-          const url = 'https://browser.lol/en/create#' + encodeURIComponent(getAbsoluteGameUrl());
-          window.open(url, '_blank', 'noopener');
+        /* لمس داخل الموقع أثناء التقريب ← إرجاع فوري للعرض الطبيعي الكامل */
+        window.addEventListener('blur', () => {
+          const overlay = $('relay-overlay');
+          if (relayZoomed && overlay && overlay.style.display !== 'none' &&
+              document.activeElement === relayFrame) {
+            relayZoomNormal();
+          }
         });
 
-        /* One press: copy the game link + open the browser.lol wizard right away */
-        function openCloudWizard() {
-          const initBtn = $('btn-cloud-init');
-          if (initBtn) initBtn.style.display = '';
-          const url = getAbsoluteGameUrl();
-          const open = (copied) => {
-            cloudInitOpen();
-            if (copied) {
-              showToast('☁️ تم نسخ الرابط وفتح موقع السحابة — الصقه في الحقل ثم اضغط Start.');
-            } else {
-              showToast('⚠️ تعذّر النسخ التلقائي — انسخ الرابط من شريط العنوان.', true);
-            }
-          };
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(url).then(() => open(true)).catch(() => open(false));
-          } else {
-            open(false);
+        /* ضغطة زر "سحابة": نسخ رابط الصفحة + فتح/تقريب أو إرجاع طبيعي */
+        function cloudWizardPress() {
+          const overlay = $('relay-overlay');
+          if (!overlay || !relayFrame) return;
+
+          if (overlay.style.display !== 'none' && relayZoomed) {
+            relayZoomNormal(); /* ضغطة ثانية أثناء التقريب ← عرض طبيعي */
+            return;
           }
+
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(window.location.href).then(
+              () => showToast('✅ تم نسخ رابط الصفحة — الصقه في حقل الصفحة.'),
+              () => showToast('⚠️ تعذّر النسخ — انسخ الرابط من شريط العنوان.', true)
+            );
+          } else {
+            showToast('⚠️ انسخ الرابط من شريط العنوان.', true);
+          }
+
+          if (overlay.style.display === 'none') {
+            $('relay-frame-wrap').style.display = 'block';
+            $('relay-canvas-wrap').style.display = 'none';
+            overlay.style.display = 'flex';
+            if (relayFrame.src.indexOf('browser.lol') === -1) {
+              relayFrameLoads = 0;
+              /* hash اختياري لمالكي الإضافة (تعبئة تلقائية) — يُتجاهل بدونها */
+              relayFrame.src = 'https://browser.lol/en/create#' + encodeURIComponent(window.location.href);
+              return; /* التقريب يصير عند اكتمال التحميل */
+            }
+          }
+          relayZoomStart();
         }
 
-        const btnCloudInit = $('btn-cloud-init');
-        if (btnCloudInit) {
-          btnCloudInit.addEventListener('click', () => cloudInitOpen());
+        function cloudWizardClose() {
+          const overlay = $('relay-overlay');
+          if (!overlay || overlay.style.display === 'none') return;
+          relayZoomNormal();
+          overlay.style.display = 'none';
+          showToast('☁️ أُغلقت شاشة السحابة — الجلسة محفوظة.');
         }
 
         // Cloud HUD actions
@@ -1043,8 +1021,24 @@
           });
         }
 
+        /* ضغطة مطولة (700ms) على "سحابة" ← إغلاق شاشة السحابة (مخرج آمن) */
+        let cloudHoldTimer = null;
+        let cloudHoldFired = false;
+        if (cloudBtn) {
+          cloudBtn.addEventListener('pointerdown', () => {
+            cloudHoldFired = false;
+            cloudHoldTimer = setTimeout(() => { cloudHoldFired = true; cloudHoldTimer = null; cloudWizardClose(); }, 700);
+          });
+          ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev =>
+            cloudBtn.addEventListener(ev, () => {
+              if (cloudHoldTimer) { clearTimeout(cloudHoldTimer); cloudHoldTimer = null; }
+            }));
+          cloudBtn.addEventListener('contextmenu', e => e.preventDefault());
+        }
+
         if (cloudBtn) {
           cloudBtn.addEventListener('click', () => {
+            if (cloudHoldFired) { cloudHoldFired = false; return; }
             if (cloudActive) {
               cloudStop(false);
               if (cloudPoll) { clearInterval(cloudPoll); cloudPoll = null; }
@@ -1055,10 +1049,10 @@
               $('play-status').textContent = `${title} is running`;
               showToast('Switched back to local play.');
             } else {
-              /* v41 merged flow: copy the link AND open browser.lol in the overlay.
-                 The old direct cloudStart() (bot / gateway / hash) is kept intact
-                 but no longer triggered — see BOT_RELAY_TEMP_DISABLED above. */
-              openCloudWizard();
+              /* v42: نسخ رابط الصفحة + فتح browser.lol في مكان اللعبة.
+                 الكود القديم المباشر cloudStart() (بوت/gateway/hash) محفوظ
+                 بمكانه لكنه غير مُستدعى — انظر BOT_RELAY_TEMP_DISABLED. */
+              cloudWizardPress();
             }
           });
         }
