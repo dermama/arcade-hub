@@ -931,6 +931,7 @@ html.arc-low .cloud-hud {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .relay-cancel { margin-inline-start: auto; flex-shrink: 0; }
+.relay-external { flex-shrink: 0; white-space: nowrap; }
 .relay-canvas-wrap {
   position: relative; flex: 1; width: 100%; overflow: hidden;
   display: flex; align-items: flex-start; justify-content: center;
