@@ -6,7 +6,7 @@
   <script>
     /* Arcade Cache & Service Worker Manager */
     (function () {
-      var B = "v38";
+      var B = "v39";
       function purge() {
         try { if (window.caches && caches.keys) caches.keys().then(function (k) { k.forEach(function (n) { caches.delete(n); }); }); } catch (e) { }
         try { if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) navigator.serviceWorker.getRegistrations().then(function (r) { r.forEach(function (s) { s.unregister(); }); }); } catch (e) { }
@@ -44,7 +44,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=38">
+  <link rel="stylesheet" href="/styles.css?v=39">
 </head>
 
 <body>
@@ -157,47 +157,55 @@
           </div>
         </div>
 
-        <!-- CLOUD PLAY HUD BAR (Direct Browser.lol Smart Focus) -->
+        <!-- CLOUD PLAY HUD BAR -->
         <div class="cloud-hud" id="cloud-hud" style="display:none;">
           <div class="cloud-hud-info">
-            <span class="cloud-hud-badge">☁️ السحابة (Browser.lol)</span>
+            <span class="cloud-hud-badge">☁️ Cloud Play</span>
             <span class="cloud-step-pill">1️⃣ الصق الرابط</span>
             <span class="cloud-step-pill">2️⃣ اضغط Start</span>
-            <span class="cloud-hud-text" id="cloud-hud-status">الرابط منسوخ في يدك! انقر داخل المربع واضغط لصق ثم
-              Start.</span>
+            <span class="cloud-hud-text" id="cloud-hud-status">جارٍ تجهيز الجلسة…</span>
           </div>
           <div class="cloud-hud-actions">
             <button class="btn btn-sm" id="btn-cloud-focus" type="button"
               title="تبديل التركيز (صندوق الإدخال مقابل شاشة اللعب الكاملة)">
               <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor">
-                <path
-                  d="M15 3l2.3 2.3-2.89 2.87 1.42 1.42L18.7 6.7 21 9V3h-6zM3 9l2.3-2.3 2.87 2.89 1.42-1.42L6.7 5.3 9 3H3v6zm6 12l-2.3-2.3 2.89-2.87-1.42-1.42L5.3 17.3 3 15v6h6zm12-6l-2.3 2.3-2.87-2.89-1.42 1.42 2.89 2.87L15 21h6v-6z" />
+                <path d="M15 3l2.3 2.3-2.89 2.87 1.42 1.42L18.7 6.7 21 9V3h-6zM3 9l2.3-2.3 2.87 2.89 1.42-1.42L6.7 5.3 9 3H3v6zm6 12l-2.3-2.3 2.89-2.87-1.42-1.42L5.3 17.3 3 15v6h6zm12-6l-2.3 2.3-2.87-2.89-1.42 1.42 2.89 2.87L15 21h6v-6z" />
               </svg>
               <span id="cloud-focus-label">شاشة كاملة</span>
             </button>
             <button class="btn btn-sm" id="btn-cloud-copy" type="button" title="نسخ رابط اللعبة مجدداً">
               <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor">
-                <path
-                  d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
               </svg>
               <span id="cloud-copy-label">نسخ الرابط</span>
             </button>
             <a class="btn btn-sm" id="btn-cloud-external" target="_blank" rel="noopener"
-              title="فتح المتصفح السحابي في نافذة خارجية">
+              title="فتح في نافذة مستقلة">
               <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor">
-                <path
-                  d="M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" />
+                <path d="M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 00-2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" />
               </svg>
               نافذة مستقلة
             </a>
-            <button class="btn btn-sm" id="btn-cloud-return" type="button" title="العودة للعب المحلي المباشر">
+            <button class="btn btn-sm" id="btn-cloud-return" type="button" title="العودة للعب المحلي">
               <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor">
-                <path
-                  d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" />
+                <path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" />
               </svg>
               لعب محلي
             </button>
           </div>
+        </div>
+
+        <!-- RELAY STREAM OVERLAY: shows Puppeteer screenshots so user can solve Turnstile -->
+        <div id="relay-overlay" class="relay-overlay" style="display:none;">
+          <div class="relay-topbar">
+            <span class="relay-topbar-title">🛡️ تحقق البشر</span>
+            <span id="relay-status" class="relay-status">جارٍ تحميل صفحة التحقق…</span>
+            <button id="btn-relay-cancel" class="btn btn-sm relay-cancel" type="button">إلغاء</button>
+          </div>
+          <div class="relay-canvas-wrap">
+            <canvas id="relay-canvas" class="relay-canvas"></canvas>
+          </div>
+          <div class="relay-hint">انقر على صفحة التحقق أعلاه لتأكيد أنك إنسان ← يتم فتح الجلسة تلقائياً بعدها</div>
         </div>
 
         <!-- IFRAME (hidden until poster clicked) -->
@@ -304,7 +312,7 @@
         Clear cache &amp; update</button></p>
   </footer>
 
-  <script src="/config.js?v=38"></script>
+  <script src="/config.js?v=39"></script>
   <script>
     (function () {
       /* ── helpers ── */
@@ -561,6 +569,17 @@
         }
 
         function cloudStop(keepalive) {
+          /* Bot relay session — free the Puppeteer instance */
+          if (relaySessionId && BOT_URL) {
+            try {
+              fetch(BOT_URL + '/session/' + relaySessionId + '/stop', {
+                method: 'POST', keepalive: !!keepalive
+              }).catch(() => { });
+            } catch (e) { }
+            relaySessionId = null;
+            relayClose();
+          }
+          /* Gateway API session — stop via worker */
           if (cloudVmId && BASE) {
             const id = cloudVmId;
             try {
@@ -609,6 +628,155 @@
           }, 2500);
         }
 
+        /* ── Relay Stream (Puppeteer VNC-lite) ──────────────────────────────
+           BOT_URL points to the local cloud-bot server (or a remote one).
+           When defined, cloudStart opens a Puppeteer session on the server,
+           streams JPEG frames here via WebSocket, and the user interacts
+           with the Turnstile challenge in the canvas overlay.
+           After the challenge passes the server sends {type:"ready",shareUrl}
+           and we load the real Browser.lol viewer in the iframe. */
+        const BOT_URL = (window.CLOUD_BOT_URL || '').replace(/\/$/, '');
+        let relayWs = null, relaySessionId = null, relayImg = new Image();
+
+        function relayClose() {
+          if (relayWs) { try { relayWs.close(); } catch(e){} relayWs = null; }
+          $('relay-overlay').style.display = 'none';
+        }
+
+        function relayOpen(sessionId) {
+          relaySessionId = sessionId;
+          const overlay = $('relay-overlay');
+          const canvas  = $('relay-canvas');
+          const ctx     = canvas.getContext('2d');
+
+          overlay.style.display = 'flex';
+          $('relay-status').textContent = 'جارٍ الاتصال بالخادم…';
+
+          const wsProto = BOT_URL.startsWith('https') ? 'wss' : 'ws';
+          const wsUrl   = BOT_URL.replace(/^https?/, wsProto)
+                        + '/session/' + sessionId + '/stream';
+          relayWs = new WebSocket(wsUrl);
+
+          relayWs.onopen = () => {
+            $('relay-status').textContent = 'متصل — الصفحة تُحمَّل، انتظر لحظة…';
+          };
+
+          relayWs.onmessage = (e) => {
+            try {
+              const msg = JSON.parse(e.data);
+              if (msg.type === 'frame') {
+                relayImg.onload = () => {
+                  // Resize canvas to image aspect ratio
+                  const iw = relayImg.naturalWidth  || 1280;
+                  const ih = relayImg.naturalHeight || 800;
+                  const cw = overlay.clientWidth  || iw;
+                  const scale = cw / iw;
+                  canvas.width  = cw;
+                  canvas.height = Math.round(ih * scale);
+                  ctx.drawImage(relayImg, 0, 0, canvas.width, canvas.height);
+                };
+                relayImg.src = 'data:image/jpeg;base64,' + msg.data;
+              } else if (msg.type === 'status') {
+                $('relay-status').textContent = msg.message || '';
+              } else if (msg.type === 'state') {
+                if (msg.state === 'streaming') {
+                  $('relay-status').textContent = 'الصفحة جاهزة — أكمل التحقق من أنك إنسان';
+                }
+              } else if (msg.type === 'ready') {
+                // Turnstile passed — load the real Browser.lol viewer
+                relayClose();
+                /* Free the Puppeteer instance — browser.lol is now live */
+                if (relaySessionId && BOT_URL) {
+                  fetch(BOT_URL + '/session/' + relaySessionId + '/stop', { method:'POST' }).catch(()=>{});
+                }
+                relaySessionId = null;
+                const shareUrl = msg.shareUrl;
+                cloudShareUrl = shareUrl;
+                cloudVmId     = msg.vmId || null;
+                playing = true;
+                $('poster').style.display = 'none';
+                const frame = $('player-frame');
+                frame.style.display = 'block';
+                frame.src = shareUrl;
+                $('btn-reload').style.display = '';
+                cloudSetActive(true);
+                const hud = $('cloud-hud');
+                if (hud) { hud.style.display = 'flex'; $('btn-cloud-external').href = shareUrl; }
+                $('player-loading').classList.add('hide');
+                $('play-status').textContent = title + ' (Cloud)';
+                showToast('✅ الجلسة السحابية جاهزة!');
+              } else if (msg.type === 'error') {
+                relayClose();
+                if (relaySessionId && BOT_URL) {
+                  fetch(BOT_URL + '/session/' + relaySessionId + '/stop', { method:'POST' }).catch(()=>{});
+                }
+                relaySessionId = null;
+                $('player-loading').classList.add('hide');
+                showToast('⚠️ ' + (msg.message || 'خطأ في الجلسة السحابية'), true);
+                cloudBtn.disabled = false;
+              }
+            } catch(ex) {}
+          };
+
+          relayWs.onerror = () => {
+            $('relay-status').textContent = '⚠️ انقطع الاتصال بالخادم';
+          };
+
+          relayWs.onclose = () => {
+            if ($('relay-overlay').style.display !== 'none') {
+              $('relay-status').textContent = 'انتهت الجلسة.';
+            }
+          };
+
+          /* ── Forward pointer events to server ── */
+          function relayPointer(type, e) {
+            if (!relayWs || relayWs.readyState !== 1) return;
+            const rect = canvas.getBoundingClientRect();
+            const cx   = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            const cy   = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+            const x = (cx - rect.left) / rect.width;
+            const y = (cy - rect.top)  / rect.height;
+            relayWs.send(JSON.stringify({ type, x, y }));
+          }
+
+          canvas.addEventListener('mousedown',  e => relayPointer('down',  e));
+          canvas.addEventListener('mouseup',    e => relayPointer('up',    e));
+          canvas.addEventListener('click',      e => relayPointer('click', e));
+          canvas.addEventListener('mousemove',  e => relayPointer('move',  e));
+          canvas.addEventListener('touchstart', e => { e.preventDefault(); relayPointer('down', e); }, { passive:false });
+          canvas.addEventListener('touchend',   e => { e.preventDefault(); relayPointer('up',   e); }, { passive:false });
+          canvas.addEventListener('touchmove',  e => { e.preventDefault(); relayPointer('move', e); }, { passive:false });
+
+          /* Forward keyboard input (Turnstile sometimes needs typing) */
+          canvas.tabIndex = 0;
+          canvas.addEventListener('keydown', (e) => {
+            if (!relayWs || relayWs.readyState !== 1) return;
+            e.preventDefault();
+            relayWs.send(JSON.stringify({ type: 'key', key: e.key, code: e.code }));
+          });
+        }
+
+        $('btn-relay-cancel') && $('btn-relay-cancel').addEventListener('click', () => {
+          relayClose();
+          if (relaySessionId && BOT_URL) {
+            fetch(BOT_URL + '/session/' + relaySessionId + '/stop', { method:'POST' }).catch(()=>{});
+            relaySessionId = null;
+          }
+          cloudBtn.disabled = false;
+          $('player-loading').classList.add('hide');
+        });
+
+        /* Stop any open relay session on page unload */
+        window.addEventListener('pagehide', () => {
+          if (relaySessionId && BOT_URL) {
+            try {
+              fetch(BOT_URL + '/session/' + relaySessionId + '/stop', {
+                method: 'POST', keepalive: true
+              }).catch(() => { });
+            } catch (e) { }
+          }
+        });
+
         async function cloudStart() {
           cloudBtn.disabled = true;
           $('player-loading').classList.remove('hide');
@@ -616,15 +784,31 @@
 
           const targetUrl = getAbsoluteGameUrl();
 
-          // 1. Copy game URL to clipboard automatically
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(targetUrl).catch(() => { });
+          /* ── Path A: Local relay bot available ──────────────────────────── */
+          if (BOT_URL) {
+            try {
+              const r = await fetch(BOT_URL + '/session/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gameUrl: targetUrl, gameKey: game.key })
+              });
+              if (r.ok) {
+                const d = await r.json();
+                if (d && d.sessionId) {
+                  relayOpen(d.sessionId);
+                  $('player-loading').classList.add('hide');
+                  $('play-status').textContent = 'جارٍ التحقق من الهوية…';
+                  showToast('🛡️ يُرجى إتمام التحقق من أنك إنسان في الشاشة أعلاه.');
+                  return; // wait for WS 'ready' event
+                }
+              }
+            } catch (e) {
+              console.warn('cloud-bot unreachable, falling back', e);
+            }
           }
 
-          // 2. Form direct Browser.lol session URL with target game pre-filled in hash for auto-launcher
-          let shareUrl = 'https://browser.lol/en/create#' + encodeURIComponent(targetUrl);
-
-          // Optional gateway backend check if configured
+          /* ── Path B: Gateway API (no relay bot) ────────────────────────── */
+          let shareUrl = null;
           if (BASE) {
             try {
               const r = await fetch(BASE + '/cloud/start', {
@@ -637,10 +821,21 @@
                 cloudVmId = d.vmId || null;
                 shareUrl = d.shareUrl;
                 pollCloud();
+              } else if (d && d.status && d.status !== 'unconfigured') {
+                /* Real error (upgrade / insecure / denied) — abort */
+                $('player-loading').classList.add('hide');
+                showToast('⚠️ ' + cloudErrorMessage(d), true);
+                cloudBtn.disabled = false;
+                return;
               }
+              /* status === 'unconfigured' → fall through to zero-key hash */
             } catch (e) { }
           }
 
+          /* Fallback: zero-key hash URL (userscript auto-launcher reads it) */
+          if (!shareUrl) {
+            shareUrl = 'https://browser.lol/en/create#' + encodeURIComponent(targetUrl);
+          }
           cloudShareUrl = shareUrl;
           playing = true;
           $('poster').style.display = 'none';
@@ -649,19 +844,11 @@
           $('btn-reload').style.display = '';
           cloudSetActive(true);
           frame.src = shareUrl;
-
-          // 3. Show Cloud HUD & update external link
           const hud = $('cloud-hud');
-          if (hud) {
-            hud.style.display = 'flex';
-            $('btn-cloud-external').href = shareUrl;
-            const statusEl = $('cloud-hud-status');
-            if (statusEl) statusEl.textContent = 'الرابط في يدك! 1: الصقه في المربع، 2: اضغط Start Session.';
-          }
-
+          if (hud) { hud.style.display = 'flex'; $('btn-cloud-external').href = shareUrl; }
           $('player-loading').classList.add('hide');
-          $('play-status').textContent = `${title} (Browser.lol Cloud)`;
-          showToast('🚀 الرابط منسوخ في يدك! الخطوة 1: الصق الرابط في المربع، الخطوة 2: اضغط Start للبدء فوراً.');
+          $('play-status').textContent = title + ' (Browser.lol Cloud)';
+          showToast('☁️ تم فتح المتصفح السحابي.');
           cloudBtn.disabled = false;
         }
 
