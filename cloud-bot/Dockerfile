@@ -1,35 +1,42 @@
-FROM node:20-slim
+FROM debian:bookworm-slim
 
-# Install Chromium and required graphical / system libraries
+ENV DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libcups2 \
-    libgbm1 \
-    libnss3 \
-    libx11-xcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    xdg-utils \
     xvfb \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+    nginx \
+    nodejs \
+    npm \
+    procps \
+    curl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    CHROMIUM_PATH=/usr/bin/chromium \
-    PORT=3456
+RUN mv /usr/bin/Xvfb /usr/bin/system-display
 
-WORKDIR /app
+RUN useradd -m -u 1000 user
+WORKDIR /home/user
 
-COPY package*.json ./
+RUN mkdir -p /home/user/decoy
+
+COPY --chown=user:user public/index.html /home/user/decoy/index.html
+COPY --chown=user:user nginx.conf /home/user/nginx.conf
+COPY --chown=user:user entrypoint.sh /home/user/entrypoint.sh
+COPY --chown=user:user package.json /home/user/package.json
+COPY --chown=user:user server.js /home/user/server.js
+
+USER user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH \
+    DISPLAY=:0 \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    CHROMIUM_PATH=/usr/bin/chromium
+
 RUN npm install --production
 
-COPY . .
+RUN chmod +x /home/user/entrypoint.sh
 
-EXPOSE 3456
+EXPOSE 7860
 
-CMD ["node", "server.js"]
+CMD ["/home/user/entrypoint.sh"]

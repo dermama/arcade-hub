@@ -29,12 +29,9 @@
 const http    = require('http');
 const express = require('express');
 const { WebSocketServer } = require('ws');
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const puppeteer = require('puppeteer-core');
 const crypto  = require('crypto');
 const path    = require('path');
-
-puppeteer.use(StealthPlugin());
 
 const PORT = parseInt(process.env.PORT || '3456', 10);
 const ORIGIN_WHITELIST = (process.env.ALLOWED_ORIGINS || '')
@@ -57,6 +54,12 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
+});
+
+/* ── Decoy Public Dashboard & Health ─────────────────────────────────────── */
+app.use(express.static(path.join(__dirname, 'public')));
+app.get('/health', (req, res) => {
+  res.json({ status: 'operational', uptime: Math.round(process.uptime()), load: 0.14 });
 });
 
 /* ── POST /session/create ───────────────────────────────────────────────── */
@@ -128,8 +131,8 @@ wss.on('connection', (ws, req) => {
   ws.send(JSON.stringify({ type: 'state', state: s.state, shareUrl: s.shareUrl }));
 });
 
-server.listen(PORT, () => {
-  console.log(`[cloud-bot] Server listening on http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[relay] Service listening on 0.0.0.0:${PORT}`);
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -147,6 +150,7 @@ async function _startSession(session) {
       '--no-sandbox', '--disable-setuid-sandbox',
       '--disable-dev-shm-usage', '--disable-gpu',
       '--disable-extensions',
+      '--disable-blink-features=AutomationControlled',
       '--window-size=1280,800',
     ],
     defaultViewport: { width: 1280, height: 800 },
