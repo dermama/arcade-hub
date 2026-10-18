@@ -2,7 +2,9 @@
    ARCADE HUB — Service Worker
    Tiered caching strategy optimised for browser-game platform
    ================================================================ */
-const VERSION = 'v45';
+/* NOTE (v47): bump VERSION on every release — cache-first shell matching with
+   ignoreSearch serves stale CSS/JS to returning devices until this changes. */
+const VERSION = 'v47';
 const SHELL_CACHE = `arcade-shell-${VERSION}`;
 const GAME_CACHE = `arcade-games-${VERSION}`;
 const IMG_CACHE = `arcade-images-${VERSION}`;

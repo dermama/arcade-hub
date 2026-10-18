@@ -35,7 +35,10 @@
   </script>
   <!-- v45: Desktop site always — fixed 1360px layout viewport (matches the
        1360px desktop container) so phones render the full computer layout
-       zoomed out to fit, never the mobile layout. -->
+       zoomed out to fit, never the mobile layout.
+       v47: Computer behavior on EVERY device (phone & tablet included) — no
+       rotate buttons, no orientation locking, no auto-flip; SW bumped to v47
+       to purge stale v45 caches that broke display on returning devices. -->
   <meta name="viewport" content="width=1360, viewport-fit=cover">
   <meta name="theme-color" content="#0c0c0d">
   <title id="page-title">Play — Arcade Games</title>
@@ -48,7 +51,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=46">
+  <link rel="stylesheet" href="/styles.css?v=47">
 </head>
 
 <body>
@@ -116,12 +119,6 @@
             </svg>
             Controls
           </button>
-          <button class="btn" id="btn-rotate" title="قلب الشاشة أفقياً / سطحياً (Landscape View)">
-            <svg viewBox="0 0 24 24">
-              <path d="M7.11 8.53L5.7 7.11C4.8 8.27 4.24 9.61 4.07 11h2.02c.14-.87.49-1.72 1.02-2.47zM6.09 13H4.07c.17 1.39.72 2.73 1.62 3.89l1.41-1.42c-.52-.75-.87-1.6-1.01-2.47zm1.01 5.32c1.16.9 2.51 1.44 3.9 1.61V17.9c-.87-.15-1.71-.49-2.46-1.03L7.1 18.32zM13 4.07V1L8.45 5.55 13 10V6.09c3.37 0 6.09 2.72 6.09 6.09s-2.72 6.09-6.09 6.09v2.02c4.48 0 8.11-3.63 8.11-8.11 0-4.48-3.63-8.11-8.11-8.11z"/>
-            </svg>
-            <span id="rotate-label">Rotate</span>
-          </button>
           <button class="btn" id="btn-fullscreen" title="Fullscreen (ملء الشاشة بالعرض)">
             <svg viewBox="0 0 24 24">
               <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
@@ -143,19 +140,13 @@
     <div style="max-width:1360px;margin:0 auto;padding:0 var(--pad)">
       <div class="player-wrap" id="player-wrap">
 
-        <!-- FLOATING CONTROLS FOR THEATER / LANDSCAPE MODE -->
+        <!-- FLOATING CONTROLS FOR THEATER MODE (v47: rotate button removed) -->
         <button class="player-float-exit" id="btn-float-exit" title="Exit theater mode">
           <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor">
             <path
               d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
           </svg>
           Exit Full View
-        </button>
-        <button class="player-float-rotate" id="btn-float-rotate" title="قلب الشاشة أفقياً / سطحياً">
-          <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor">
-            <path d="M7.11 8.53L5.7 7.11C4.8 8.27 4.24 9.61 4.07 11h2.02c.14-.87.49-1.72 1.02-2.47zM6.09 13H4.07c.17 1.39.72 2.73 1.62 3.89l1.41-1.42c-.52-.75-.87-1.6-1.01-2.47zm1.01 5.32c1.16.9 2.51 1.44 3.9 1.61V17.9c-.87-.15-1.71-.49-2.46-1.03L7.1 18.32zM13 4.07V1L8.45 5.55 13 10V6.09c3.37 0 6.09 2.72 6.09 6.09s-2.72 6.09-6.09 6.09v2.02c4.48 0 8.11-3.63 8.11-8.11 0-4.48-3.63-8.11-8.11-8.11z"/>
-          </svg>
-          Rotate
         </button>
 
         <!-- POSTER (click to play) -->
@@ -932,10 +923,9 @@
           const btnRot = $('btn-rotate');
           if (btnRot) btnRot.classList.toggle('pri', shouldRotate);
 
-          // Try native device orientation lock if supported
-          if (shouldRotate && screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape').catch(() => {});
-          } else if (!shouldRotate && screen.orientation && screen.orientation.unlock) {
+          /* v47: أُلغي قفل اتجاه الجهاز نهائياً (كان يقلب شاشة الهاتف/التابلت قسراً) —
+             السلوك الآن كعرض كمبيوتر على كل الأجهزة. */
+          if (!shouldRotate && screen.orientation && screen.orientation.unlock) {
             try { screen.orientation.unlock(); } catch (e) {}
           }
 
@@ -1058,11 +1048,8 @@
           $('btn-theater').classList.toggle('pri', shouldExpand);
           $('btn-theater').title = shouldExpand ? 'Exit Theater' : 'Theater Mode (Expand View)';
 
-          // When expanding on a mobile phone in portrait, automatically flip to landscape surface!
-          const isMobilePortrait = window.innerWidth < 900 && window.innerHeight > window.innerWidth;
-          if (shouldExpand && isMobilePortrait) {
-            toggleLandscape(true);
-          } else if (!shouldExpand && wrap.classList.contains('is-landscape-surface')) {
+          /* v47: أُلغي القلب التلقائي للشاشة على أي جهاز (هاتف/تابلت) — سلوك كمبيوتر دائماً. */
+          if (!shouldExpand && wrap.classList.contains('is-landscape-surface')) {
             toggleLandscape(false);
           }
 
@@ -1216,13 +1203,7 @@
           if (req) {
             try { const p = req.call(wrap); if (p && p.catch) p.catch(() => { }); } catch (e) { }
           }
-          // On mobile phones held in portrait, automatically flip to horizontal landscape surface!
-          const isMobilePortrait = window.innerWidth < 900 && window.innerHeight > window.innerWidth;
-          if (isMobilePortrait) {
-            toggleLandscape(true);
-          } else if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape').catch(() => {});
-          }
+          /* v47: بلا قلب شاشة أو قفل اتجاه على أي جهاز — يبقى العرض ككمبيوتر دائماً. */
         });
 
         function onFullscreenChange() {

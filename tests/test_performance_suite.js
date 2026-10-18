@@ -220,7 +220,7 @@ runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
 console.log('\n▶ [Axis 7]: Testing Service Worker Offline & Tiered Caching Strategy...');
 
 runTest('Service Worker contains Tiered Cache configuration', () => {
-  assert(swCode.includes("VERSION = 'v45'"), 'Service worker should be synced to v45');
+  assert(swCode.includes("VERSION = 'v47'"), 'Service worker should be synced to v47');
   assert(swCode.includes('SHELL_CACHE'), 'App shell cache should be defined');
   assert(swCode.includes('GAME_CACHE'), 'Runtime game cache should be defined');
   assert(swCode.includes('IMG_CACHE'), 'Image cache should be defined');
@@ -261,6 +261,15 @@ runTest('game.html sandbox attributes, preconnect, memory cleanup, and v45 links
   assert(stylesCss.includes('width: 1280px'), 'Relay frame CSS must default to a 1280px desktop viewport');
   assert(stylesCss.includes('transform-origin: 0 0;'), 'Relay frame must scale from the top-left corner');
   assert(gameHtml.includes('width=1360'), 'game.html must always use the 1360px desktop layout viewport');
+});
+
+runTest('v47: computer behavior everywhere — no rotate UI, no orientation lock', () => {
+  assert(!gameHtml.includes('id="btn-rotate"'), 'v47: rotate button must be removed');
+  assert(!gameHtml.includes('id="btn-float-rotate"'), 'v47: floating rotate button must be removed');
+  assert(!gameHtml.includes('screen.orientation.lock('), 'v47: device orientation must never be locked');
+  assert(!gameHtml.includes('isMobilePortrait'), 'v47: no mobile-portrait auto-flip logic');
+  assert(gameHtml.includes('/styles.css?v=47'), 'game.html styles must be synced to v47');
+  assert(indexHtml.includes('/styles.css?v=47'), 'index.html styles must be synced to v47');
 });
 
 runTest('styles.css contains content-visibility: auto for smooth mobile card scrolling', () => {
