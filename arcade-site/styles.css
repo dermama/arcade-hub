@@ -301,7 +301,41 @@ body.player-is-expanded {
   overflow: hidden !important;
 }
 
-/* Floating exit button when in Theater mode */
+/* In-window Landscape Surface mode (Auto-flip to full horizontal widescreen on mobile) */
+.player-wrap.is-landscape-surface {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  max-width: 100vw !important;
+  max-height: 100dvh !important;
+  border-radius: 0 !important;
+  z-index: 99999 !important;
+  margin: 0 !important;
+  background: #000 !important;
+  aspect-ratio: auto !important;
+}
+
+@media (orientation: portrait) and (max-width: 900px) {
+  .player-wrap.is-landscape-surface {
+    top: 50% !important;
+    left: 50% !important;
+    bottom: auto !important;
+    right: auto !important;
+    width: 100dvh !important;
+    height: 100dvw !important;
+    max-width: 100dvh !important;
+    max-height: 100dvw !important;
+    transform: translate(-50%, -50%) rotate(90deg) !important;
+    transform-origin: center center !important;
+  }
+}
+
+body.player-is-landscape-surface {
+  overflow: hidden !important;
+}
+
+/* Floating exit and rotate buttons when in Theater/Landscape mode */
 .player-float-exit {
   display: none;
   position: absolute;
@@ -326,7 +360,38 @@ body.player-is-expanded {
 .player-float-exit:hover {
   background: rgba(255, 255, 255, 0.15);
 }
-.player-wrap.is-expanded .player-float-exit {
+.player-wrap.is-expanded .player-float-exit,
+.player-wrap.is-landscape-surface .player-float-exit {
+  display: inline-flex;
+}
+
+.player-float-rotate {
+  display: none;
+  position: absolute;
+  top: 14px;
+  right: 136px;
+  z-index: 50;
+  background: rgba(12, 12, 13, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-family: var(--disp);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  transition: background .15s, transform .1s, opacity .3s;
+  align-items: center;
+  gap: 6px;
+}
+.player-float-rotate:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.player-wrap.is-expanded .player-float-rotate,
+.player-wrap.is-landscape-surface .player-float-rotate,
+.player-wrap:fullscreen .player-float-rotate {
   display: inline-flex;
 }
 
@@ -890,18 +955,18 @@ html.arc-low .cloud-hud {
 
 /* --- CLOUD AUTO-FOCUS & VIEWPORT ALIGNMENT --- */
 .player-frame.cloud-mode {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  top: 0 !important;
+  left: 0 !important;
+  border: none !important;
   touch-action: auto !important;
-  transition: top .3s cubic-bezier(.2,.8,.2,1), height .3s cubic-bezier(.2,.8,.2,1);
 }
 .player-frame.cloud-focused {
-  top: -240px;
-  height: calc(100% + 240px) !important;
-}
-@media (max-width: 768px) {
-  .player-frame.cloud-focused {
-    top: -210px;
-    height: calc(100% + 210px) !important;
-  }
+  top: 0 !important;
+  height: 100% !important;
 }
 .cloud-step-pill {
   display: inline-flex; align-items: center; gap: 4px;
@@ -957,17 +1022,15 @@ html.arc-low .cloud-hud {
 }
 .relay-tool { flex-shrink: 0; white-space: nowrap; }
 .relay-frame-wrap {
-  position: relative; flex: 1; width: 100%; overflow: hidden; background: #fff;
+  position: relative; flex: 1; width: 100%; height: 100%; overflow: hidden; background: #0c0c0d;
+  display: flex; align-items: center; justify-content: center;
 }
 .relay-frame {
-  /* v45: عرض كمبيوتر دائم — الإطار يعمل بمنفذ سطح مكتب 1280px ويُصغَّر
-     بـtransform ليملأ المكان بالكامل، فيُعرض browser.lol دائماً بتخطيط
-     الكمبيوتر (مثل "عرض نسخة سطح المكتب") على كل الأجهزة وبلا أي زر.
-     القيم الفعلية (width/height/transform) يعيّنها fitRelayDesktop. */
-  position: absolute; top: 0; left: 0;
+  position: absolute;
   width: 1280px; height: 720px;
   border: 0; background: #fff;
   transform-origin: 0 0;
+  transition: transform .15s ease-out;
 }
 @media (max-width: 768px) {
   .relay-tools { padding: 6px 10px; gap: 6px; }
