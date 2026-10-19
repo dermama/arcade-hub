@@ -64,26 +64,26 @@
       }
     } catch (e3) {}
 
+    /* Self-heal legacy keys that caused black screen and offset in returning browsers */
+    try {
+      ["arcade.res", "arcade.perf", "arcade.quality-tier", "arcade.drs_auto"].forEach(function (k) {
+        try { Storage.prototype.removeItem.call(localStorage, k); } catch (e0) {}
+        try { Storage.prototype.removeItem.call(localStorage, nsK(k)); } catch (e1) {}
+      });
+    } catch (eClean) {}
+
     var LOW = RH.touch > 0 || (RH.cores > 0 && RH.cores <= 4) || (RH.memory > 0 && RH.memory <= 4);
     var V_LOW = (RH.cores > 0 && RH.cores <= 2) || (RH.memory > 0 && RH.memory <= 2);
-    var perfOn, resOn, drsAuto;
-    try {
-      var lp = pget("arcade.perf");
-      var lr = pget("arcade.res");
-      var ld = pget("arcade.drs_auto");
-      perfOn = lp === null ? LOW : lp === "1";
-      resOn = lr === null ? false : lr === "1";
-      drsAuto = ld === null ? true : ld === "1";
-    } catch (e) { perfOn = LOW; resOn = false; drsAuto = true; }
+    var perfOn = false, resOn = false, drsAuto = false;
 
     window.ARCADE = window.ARCADE || {};
     window.ARCADE.perf = {
       dpr: V_LOW ? 1.0 : (LOW ? 1.25 : 1.5),
-      res: V_LOW ? 0.6 : 0.75,
+      res: 1.0,
       fact: 1.0,
-      autoDRS: !!drsAuto,
-      on: !!perfOn,
-      resOn: !!resOn,
+      autoDRS: true,
+      on: false,
+      resOn: false,
       low: !!LOW,
       vlow: !!V_LOW,
       real: RH,
@@ -102,7 +102,7 @@
     d(navigator, "deviceMemory", Math.max(RH.memory || 4, 8));
 
     /* ── WebGL Capability Clamping & Command Monitoring ── */
-    var FLOOR = { 0x8DFB: 8192, 0x8DFD: 8192, 0x0D33: 16384, 0x8073: 4096, 0x8872: 32, 0x8869: 16, 0x8B4A: 32 };
+    var FLOOR = { 0x8DFB: 8192, 0x8DFD: 8192, 0x8073: 4096, 0x8872: 32, 0x8869: 16, 0x8B4A: 32 };
     var rawDrawCalls = 0;
     function patch(proto) {
       if (!proto || proto.__shim) return;
@@ -131,7 +131,7 @@
     patch(window.WebGLRenderingContext && window.WebGLRenderingContext.prototype);
     patch(window.WebGL2RenderingContext && window.WebGL2RenderingContext.prototype);
 
-    /* ── WebGL Context Creation Optimization ── */
+    /* ── WebGL Context Creation (Mobile & Iframe Black-Screen Fix) ── */
     (function () {
       try {
         var g = HTMLCanvasElement.prototype.getContext;
@@ -140,12 +140,9 @@
           try {
             if (typeof t === "string" && /(webgl2|webgl)/i.test(t)) {
               a = a || {};
-              if (window.ARCADE.perf.on) {
-                if (a.powerPreference == null) a.powerPreference = "high-performance";
-                if (a.antialias == null && (LOW || window.ARCADE.perf.autoDRS)) a.antialias = false;
-                if (a.desynchronized == null) a.desynchronized = true;
-                if (a.preserveDrawingBuffer == null) a.preserveDrawingBuffer = false;
-              }
+              if (a.powerPreference == null) a.powerPreference = "high-performance";
+              /* CRITICAL FIX: desynchronized MUST be omitted or false on mobile iframes.
+                 Forcing desynchronized: true breaks mobile compositor and turns canvas pitch black. */
               return g.call(this, t, a);
             }
           } catch (e) {}
@@ -314,14 +311,13 @@
     };
     window.ARCADE.DRS = DRS;
 
-    /* ── Canvas Buffer Interceptor ── */
+    /* ── Canvas Buffer Interceptor (1:1 Native Resolution Guard — Fixes Permanent Offset) ── */
     (function () {
       try {
         var WP = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, "width");
         var HP = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, "height");
-        var startFactor = resOn ? window.ARCADE.perf.res : initDrsFactor;
-        window.ARCADE.perf.fact = startFactor;
-        DRS.currentFactor = startFactor;
+        window.ARCADE.perf.fact = 1.0;
+        DRS.currentFactor = 1.0;
 
         if (WP) Object.defineProperty(HTMLCanvasElement.prototype, "width", {
           configurable: true,
@@ -329,8 +325,7 @@
           set: function (v) {
             this.__arc = this.__arc || { w: WP.get.call(this), h: HP ? HP.get.call(this) : 0 };
             this.__arc.w = Number(v) || 0;
-            var f = window.ARCADE.perf.fact || 1.0;
-            WP.set.call(this, Math.max(1, Math.round(this.__arc.w * f)));
+            WP.set.call(this, this.__arc.w);
           }
         });
         if (HP) Object.defineProperty(HTMLCanvasElement.prototype, "height", {
@@ -339,8 +334,7 @@
           set: function (v) {
             this.__arc = this.__arc || { w: WP ? WP.get.call(this) : 0, h: HP.get.call(this) };
             this.__arc.h = Number(v) || 0;
-            var f = window.ARCADE.perf.fact || 1.0;
-            HP.set.call(this, Math.max(1, Math.round(this.__arc.h * f)));
+            HP.set.call(this, this.__arc.h);
           }
         });
       } catch (e) {}

@@ -161,7 +161,8 @@ function inject(html, key) {
   const fitStyle = '<style id="arcade-game-autofit">' +
     'html,body{margin:0!important;padding:0!important;width:100%!important;height:100%!important;height:100dvh!important;overflow:hidden!important;background:#000!important;display:flex!important;align-items:center!important;justify-content:center!important}' +
     '#unity-container,#unity-container.unity-desktop,.unity-desktop,.unity-mobile,#game-container,#canvas-container,.webgl-content,#app,#root{position:absolute!important;inset:0!important;top:0!important;left:0!important;width:100%!important;height:100%!important;transform:none!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;margin:0!important}' +
-    '#unity-canvas,canvas{width:100%!important;height:100%!important;max-width:100vw!important;max-height:100dvh!important;object-fit:contain!important;display:block!important;margin:auto!important}' +
+    '#unity-canvas{width:100%!important;height:100%!important;max-width:100vw!important;max-height:100dvh!important;object-fit:contain!important;display:block!important;margin:auto!important}' +
+    'canvas{max-width:100vw!important;max-height:100dvh!important;object-fit:contain!important}' +
     '#unity-footer,#unity-warning,#unity-mobile-warning{display:none!important}' +
     '</style>';
 
