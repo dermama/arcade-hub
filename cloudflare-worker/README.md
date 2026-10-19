@@ -9,15 +9,24 @@ A permanent proxy that serves restricted browser games: it injects the `__shim.j
 - `/<root_mount>/...` (e.g. `/bo1z/...`) → proxies through a fixed root.
 - Returned HTML is injected with `<script src="/__shim.js"></script>`.
 - If the game is in `iso`, `COOP: same-origin` and `COEP: require-corp` are added (for SharedArrayBuffer).
+- Upstream fetches drop the gateway's own cache-buster `v` query param (fixes origins like vel.gg that redirect-loop when a query is present).
 
 Data (lists/roots) is read from `src/games.json`.
 
 ## Deploy
 ```bash
-npm i -g wrangler
+bash deploy.sh        # one command — reads credentials from the env file below
+```
+Credentials file `~/.config/cloudflare/credentials.env` (chmod 600, never committed):
+```bash
 export CLOUDFLARE_API_TOKEN=...        # Workers Scripts: Edit
-export CLOUDFLARE_ACCOUNT_ID=...
-wrangler deploy                        # produces https://<worker>.<subdomain>.workers.dev
+export CLOUDFLARE_ACCOUNT_ID=92153073c9d7da3ed773791463e5c244
+```
+The account id is also pinned in `wrangler.toml`, so `wrangler deploy` can never hit another account.
+Deployed URL: https://gateway.arcade22cf2.workers.dev
+Quick verify after deploy:
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' 'https://gateway.arcade22cf2.workers.dev/bsz/?v=38'   # expect 200
 ```
 
 ## Wiring the frontend

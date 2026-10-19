@@ -302,7 +302,10 @@ export default {
       });
     }
 
-    const target = "https://" + host + "/" + tail + (u.search || "");
+    const upQuery = new URLSearchParams(u.search);
+    upQuery.delete("v");
+    const upQueryStr = upQuery.toString();
+    const target = "https://" + host + "/" + tail + (upQueryStr ? "?" + upQueryStr : "");
 
     const fwd = new Headers();
     for (const [k, v] of request.headers) {
