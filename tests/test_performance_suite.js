@@ -220,7 +220,7 @@ runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
 console.log('\n▶ [Axis 7]: Testing Service Worker Offline & Tiered Caching Strategy...');
 
 runTest('Service Worker contains Tiered Cache configuration', () => {
-  assert(swCode.includes("VERSION = 'v47'"), 'Service worker should be synced to v47');
+  assert(swCode.includes("VERSION = 'v48'"), 'Service worker should be synced to v48');
   assert(swCode.includes('SHELL_CACHE'), 'App shell cache should be defined');
   assert(swCode.includes('GAME_CACHE'), 'Runtime game cache should be defined');
   assert(swCode.includes('IMG_CACHE'), 'Image cache should be defined');
@@ -268,8 +268,22 @@ runTest('v47: computer behavior everywhere — no rotate UI, no orientation lock
   assert(!gameHtml.includes('id="btn-float-rotate"'), 'v47: floating rotate button must be removed');
   assert(!gameHtml.includes('screen.orientation.lock('), 'v47: device orientation must never be locked');
   assert(!gameHtml.includes('isMobilePortrait'), 'v47: no mobile-portrait auto-flip logic');
-  assert(gameHtml.includes('/styles.css?v=47'), 'game.html styles must be synced to v47');
-  assert(indexHtml.includes('/styles.css?v=47'), 'index.html styles must be synced to v47');
+  assert(gameHtml.includes('/styles.css?v=48'), 'game.html styles must be synced to v48');
+  assert(indexHtml.includes('/styles.css?v=48'), 'index.html styles must be synced to v48');
+});
+
+runTest('v48: cache auto-heal — build marker, SW takeover reload, safe purge, stable game caches', () => {
+  assert(gameHtml.includes('var B = "v48"'), 'game.html build marker must be v48');
+  assert(indexHtml.includes('var B = "v48"'), 'index.html build marker must be v48');
+  assert(swCode.includes("const VERSION = 'v48'"), 'SW must be v48');
+  assert(swCode.includes("'arcade-games-static'") && swCode.includes("'arcade-images-static'"), 'game/image caches must be version-stable');
+  assert(swCode.includes('migrateLegacyInto'), 'legacy versioned game caches must be migrated, not dropped');
+  assert(swCode.includes('self.skipWaiting()') && swCode.includes('self.clients.claim()'), 'SW must activate and take over immediately');
+  assert(gameHtml.includes('controllerchange') && indexHtml.includes('controllerchange'), 'pages must auto-reload once on SW takeover');
+  assert(!gameHtml.includes('s.unregister()') && !indexHtml.includes('s.unregister()'), 'purge must never unregister the SW');
+  assert(gameHtml.includes('keepFast') && indexHtml.includes('keepFast'), 'purge must preserve arcade-games-*/arcade-images-*');
+  assert(gameHtml.includes('id="btn-purge"') && gameHtml.includes('data-purge'), 'game.html needs a visible purge button');
+  assert(stylesCss.includes('#purge-fab'), 'index floating purge button styles must stay');
 });
 
 runTest('styles.css contains content-visibility: auto for smooth mobile card scrolling', () => {

@@ -4,21 +4,61 @@
 <head>
   <meta charset="UTF-8">
   <script>
-    /* Arcade Cache & Service Worker Manager */
+    /* Arcade Cache & Service Worker Manager (v48)
+       - Auto-update: build marker mismatch → purge SHELL caches → one nc-reload.
+       - Fast game caches (arcade-games- / arcade-images- prefixes) are NEVER purged here.
+       - The SW keeps itself: no unregister (game fast-cache + auto-update intact). */
     (function () {
-      var B = "v45";
-      function purge() {
-        try { if (window.caches && caches.keys) caches.keys().then(function (k) { k.forEach(function (n) { caches.delete(n); }); }); } catch (e) { }
-        try { if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) navigator.serviceWorker.getRegistrations().then(function (r) { r.forEach(function (s) { s.unregister(); }); }); } catch (e) { }
+      var B = "v48";
+      function keepFast(n) { return n.indexOf("arcade-games") === 0 || n.indexOf("arcade-images") === 0; }
+      function purgeShell() {
+        try {
+          if (window.caches && caches.keys) {
+            return caches.keys().then(function (k) {
+              return Promise.all(k.filter(function (n) { return !keepFast(n); }).map(function (n) { return caches.delete(n); }));
+            }).catch(function () { });
+          }
+        } catch (e) { }
+        return Promise.resolve();
       }
-      function hardReload() { purge(); var u = new URL(location.href); u.searchParams.set("nc", Date.now()); location.replace(u.toString()); }
+      function hardReload() {
+        var u = new URL(location.href); u.searchParams.set("nc", Date.now());
+        var go = function () { location.replace(u.toString()); };
+        try {
+          purgeShell().then(function () {
+            try {
+              if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+                navigator.serviceWorker.getRegistration().then(function (r) { if (r && r.update) r.update(); }).catch(function () { });
+              }
+            } catch (e) { }
+            go();
+          });
+        } catch (e) { go(); }
+      }
       try {
         var prev = localStorage.getItem("arcade.build");
         localStorage.setItem("arcade.build", B);
-        if (prev !== null && prev !== B) { purge(); }
+        if (prev !== null && prev !== B) {
+          var done = "";
+          try { done = sessionStorage.getItem("arcade.purged") || ""; if (!done) sessionStorage.setItem("arcade.purged", B); } catch (e) { }
+          if (done !== B) { hardReload(); }
+        }
       } catch (e) { }
 
       if ("serviceWorker" in navigator) {
+        /* Auto-heal: when a NEW service worker takes over a page that was served by an
+           OLD one, reload once so the fresh shell is what the user actually sees. */
+        try {
+          var hadController = !!navigator.serviceWorker.controller;
+          navigator.serviceWorker.addEventListener("controllerchange", function () {
+            if (!hadController) return;
+            var n = 0;
+            try { n = +(sessionStorage.getItem("arcade.swr") || 0); } catch (e) { }
+            if (n >= 3) return;
+            try { sessionStorage.setItem("arcade.swr", n + 1); } catch (e) { }
+            location.reload();
+          });
+        } catch (e) { }
         window.addEventListener("load", function () {
           navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(function () { });
         });
@@ -38,7 +78,9 @@
        zoomed out to fit, never the mobile layout.
        v47: Computer behavior on EVERY device (phone & tablet included) — no
        rotate buttons, no orientation locking, no auto-flip; SW bumped to v47
-       to purge stale v45 caches that broke display on returning devices. -->
+       to purge stale v45 caches that broke display on returning devices.
+       v48: Cache auto-heal — build-marker purge + SW takeover reload; game
+       fast-caches (arcade-games-*/arcade-images-*) survive every update. -->
   <meta name="viewport" content="width=1360, viewport-fit=cover">
   <meta name="theme-color" content="#0c0c0d">
   <title id="page-title">Play — Arcade Games</title>
@@ -51,7 +93,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=47">
+  <link rel="stylesheet" href="/styles.css?v=48">
 </head>
 
 <body>
@@ -72,6 +114,12 @@
           </svg>
           Back
         </a>
+        <button class="btn" id="btn-purge" data-purge type="button" title="تحديث الموقع وتنظيف الكاش القديم (كاش الألعاب يبقى للتحميل السريع)">
+          <svg viewBox="0 0 24 24">
+            <path d="M17.65 6.35A7.958 7.958 0 0012 4a8 8 0 108 8h-2a6 6 0 11-1.76-4.24L13 11h7V4l-2.35 2.35z" />
+          </svg>
+          Refresh
+        </button>
       </div>
     </div>
   </nav>

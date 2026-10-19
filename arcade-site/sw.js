@@ -2,12 +2,14 @@
    ARCADE HUB — Service Worker
    Tiered caching strategy optimised for browser-game platform
    ================================================================ */
-/* NOTE (v47): bump VERSION on every release — cache-first shell matching with
-   ignoreSearch serves stale CSS/JS to returning devices until this changes. */
-const VERSION = 'v47';
+/* NOTE (v48): bump VERSION on every release — cache-first shell matching with
+   ignoreSearch serves stale CSS/JS to returning devices until this changes.
+   GAME/IMG caches use STABLE names: heavy game files survive every update,
+   and legacy versioned game/image caches are migrated, never dropped. */
+const VERSION = 'v48';
 const SHELL_CACHE = `arcade-shell-${VERSION}`;
-const GAME_CACHE = `arcade-games-${VERSION}`;
-const IMG_CACHE = `arcade-images-${VERSION}`;
+const GAME_CACHE = 'arcade-games-static';
+const IMG_CACHE = 'arcade-images-static';
 const ACTIVE_CACHES = [SHELL_CACHE, GAME_CACHE, IMG_CACHE];
 
 /* App-shell URLs that must be available instantly / offline */
@@ -37,14 +39,46 @@ self.addEventListener('install', (event) => {
   );
 });
 
-/* ── ACTIVATE ── wipe stale caches */
+/* ── ACTIVATE ── wipe stale SHELL caches; migrate legacy game caches ── */
+const LEGACY_FAST_PREFIXES = ['arcade-games-', 'arcade-images-'];
+function isLegacyFast(k) {
+  return LEGACY_FAST_PREFIXES.some(p => k.startsWith(p)) && !ACTIVE_CACHES.includes(k);
+}
+async function migrateLegacyInto(cacheName, prefix) {
+  try {
+    const keys = await caches.keys();
+    for (const k of keys) {
+      if (k === cacheName || !k.startsWith(prefix)) continue;
+      try {
+        const old = await caches.open(k);
+        const next = await caches.open(cacheName);
+        for (const req of await old.keys()) {
+          try {
+            if (!(await next.match(req))) {
+              const res = await old.match(req);
+              if (res) await next.put(req, res);
+            }
+          } catch (e) {}
+        }
+        await caches.delete(k);
+      } catch (e) {}
+    }
+  } catch (e) {}
+}
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
-        keys.filter(k => !ACTIVE_CACHES.includes(k)).map(k => caches.delete(k))
+        keys.filter(k => !ACTIVE_CACHES.includes(k) && !isLegacyFast(k)).map(k => caches.delete(k))
       ))
       .then(() => self.clients.claim())
+      .then(() => {
+        /* Best-effort background migration of old versioned game/image caches
+           into the stable ones — keeps heavy game files cached (no re-download).
+           Runs detached so it never delays the takeover/auto-reload. */
+        migrateLegacyInto(GAME_CACHE, 'arcade-games-');
+        migrateLegacyInto(IMG_CACHE, 'arcade-images-');
+      })
   );
 });
 
