@@ -443,10 +443,18 @@
         return h && !BLOCKED_HOSTS.has(h) ? h : null;
       }
 
+      /* v52: per-game server override — direct:true forces Direct (e.g. vel.gg/bsz),
+         direct:false forces Gateway (e.g. XFO-protected hosts). Undefined = global toggle. */
+      function gameDirect(g) {
+        if (g && g.direct === true) return true;
+        if (g && g.direct === false) return false;
+        return useDirect;
+      }
+
       function gameUrl(g) {
         const path = (g.path || '').replace(/^\//, '');
         const host = directHost(g);
-        if (useDirect && host) {
+        if (gameDirect(g) && host) {
           return 'https://' + host + '/' + path;
         }
         const p = g.root
@@ -466,6 +474,9 @@
         let game = null;
         if (gKey && gPath) {
           game = GAMES.find(g => g.key === gKey && g.path === gPath);
+        }
+        if (!game && gKey) {
+          game = GAMES.find(g => g.key === gKey);
         }
         if (!game && gParam) {
           const target = gParam.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -525,7 +536,7 @@
           if (!sourceBtn) return;
           if (directHost(game)) {
             sourceBtn.style.display = 'inline-flex';
-            sourceBtn.innerHTML = `<svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg> ${useDirect ? 'Server: Direct' : 'Server: Gateway'}`;
+            sourceBtn.innerHTML = `<svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg> ${gameDirect(game) ? 'Server: Direct' : 'Server: Gateway'}`;
           } else {
             sourceBtn.style.display = 'none';
           }
@@ -535,6 +546,7 @@
         if (sourceBtn) {
           sourceBtn.addEventListener('click', () => {
             if (cloudActive) { showToast('Stop cloud play to switch servers.'); return; }
+            if (game && game.direct !== undefined) { showToast('This game uses a fixed server mode.'); return; }
             useDirect = !useDirect;
             updateSourceBtn();
             const newUrl = gameUrl(game);
@@ -1244,6 +1256,7 @@
            Direct cross-origin embed, switch it so the buttons are truly functional. */
         function ensureGatewayForControls() {
           if (cloudActive) return;
+          if (game && game.direct !== undefined) return;
           if (!useDirect || !directHost(game)) return;
           useDirect = false;
           updateSourceBtn();
