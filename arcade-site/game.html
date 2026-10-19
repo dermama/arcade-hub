@@ -350,25 +350,25 @@
             <button class="vg-btn vg-shoulder vg-pri" id="vg-r1" type="button" data-key="Space" data-code="Space" data-mouse="left" aria-label="R1 Fire">R1 FIRE</button>
           </div>
 
-          <!-- Left Directional Controls (Analog Thumbstick + Classic D-Pad) -->
-          <div class="vg-left-cluster">
-            <div class="vg-stick-zone" id="vg-stick-zone">
-              <div class="vg-stick-base" id="vg-stick-base">
-                <div class="vg-stick-knob" id="vg-stick-knob"></div>
-              </div>
+          <!-- Dynamic Analog Thumbstick Surface (Spawns anywhere touched on Left 50%) -->
+          <div class="vg-stick-zone" id="vg-stick-zone">
+            <div class="vg-stick-base" id="vg-stick-base">
+              <div class="vg-stick-knob" id="vg-stick-knob"></div>
             </div>
-            <div class="vg-dpad" id="vg-dpad" style="display:none">
-              <button class="vg-btn vg-up" type="button" data-key="ArrowUp" data-code="ArrowUp" aria-label="Up">▲</button>
-              <div class="vg-mid-row">
-                <button class="vg-btn vg-left" type="button" data-key="ArrowLeft" data-code="ArrowLeft"
-                  aria-label="Left">◀</button>
-                <div class="vg-center"></div>
-                <button class="vg-btn vg-right" type="button" data-key="ArrowRight" data-code="ArrowRight"
-                  aria-label="Right">▶</button>
-              </div>
-              <button class="vg-btn vg-down" type="button" data-key="ArrowDown" data-code="ArrowDown"
-                aria-label="Down">▼</button>
+          </div>
+
+          <!-- Classic D-Pad (Toggled via 🕹️ / 🔲) -->
+          <div class="vg-dpad" id="vg-dpad" style="display:none">
+            <button class="vg-btn vg-up" type="button" data-key="ArrowUp" data-code="ArrowUp" aria-label="Up">▲</button>
+            <div class="vg-mid-row">
+              <button class="vg-btn vg-left" type="button" data-key="ArrowLeft" data-code="ArrowLeft"
+                aria-label="Left">◀</button>
+              <div class="vg-center"></div>
+              <button class="vg-btn vg-right" type="button" data-key="ArrowRight" data-code="ArrowRight"
+                aria-label="Right">▶</button>
             </div>
+            <button class="vg-btn vg-down" type="button" data-key="ArrowDown" data-code="ArrowDown"
+              aria-label="Down">▼</button>
           </div>
 
           <!-- System buttons (Start / Select) -->
@@ -457,7 +457,6 @@
         Clear cache &amp; update</button></p>
   </footer>
 
-  <script src="/nipplejs.js"></script>
   <script src="/config.js?v=45"></script>
 
   <script>
@@ -1385,7 +1384,7 @@
         function releaseAllButtons() {
           heldByPointer.clear();
           Array.from(heldButtons).forEach(releaseButton);
-          resetStickInput();
+          if (window._joystickReset) window._joystickReset();
         }
 
         function setGamepad(show) {
@@ -1464,94 +1463,144 @@
           } catch (e) { }
         }
 
-        /* ── nipplejs Dynamic Joystick Integration ── */
-        /*  "dynamic" mode = spawns exactly where the finger touches,
-            disappears on release. Exactly what the user requested.         */
-        const stickZone = $('vg-stick-zone');
-        const activeStickDirs = new Set();
-        let nippleManager = null;
+        /* ── Dynamic Analog Thumbstick Engine (Spawns anywhere on Left 50% Touch Region) ── */
+        (function () {
+          const zone = $('vg-stick-zone');
+          const base = $('vg-stick-base');
+          const knob = $('vg-stick-knob');
+          if (!zone || !base || !knob) return;
 
-        function releaseStickDirs() {
-          activeStickDirs.forEach(k => dispatchGameInput('keyup', k, k));
-          activeStickDirs.clear();
-          dispatchGameAxis(0, 0);
-          dispatchGameAxis(1, 0);
-        }
+          const BASE_R = 60; // base ring radius (120px diameter)
+          const MAX_R  = 48; // max travel radius for knob
 
-        function applyStickVector(vector, force) {
-          // vector = { x, y } normalized to ±1 from nipplejs
-          const rawX = Math.max(-1, Math.min(1, vector.x));
-          const rawY = Math.max(-1, Math.min(1, vector.y));
+          let active = false;
+          let activePid = null;
+          let ox = 0, oy = 0; // touch origin in client coordinates
+          const heldDirs = new Set();
 
-          // Curved sensitivity (x^1.7): precise near center, full at edge
-          const curve = v => Math.sign(v) * Math.pow(Math.abs(v), 1.7);
-          const normX = curve(rawX);
-          const normY = curve(rawY);
-
-          dispatchGameAxis(0, normX);
-          dispatchGameAxis(1, normY);
-
-          // Digital keys — use raw values with 0.2 deadzone
-          const dead = 0.20;
-          const wanted = new Set();
-          if (rawY < -dead) { wanted.add('ArrowUp');    wanted.add('KeyW'); }
-          if (rawY >  dead) { wanted.add('ArrowDown');  wanted.add('KeyS'); }
-          if (rawX < -dead) { wanted.add('ArrowLeft');  wanted.add('KeyA'); }
-          if (rawX >  dead) { wanted.add('ArrowRight'); wanted.add('KeyD'); }
-
-          activeStickDirs.forEach(k => {
-            if (!wanted.has(k)) { activeStickDirs.delete(k); dispatchGameInput('keyup', k, k); }
-          });
-          wanted.forEach(k => {
-            if (!activeStickDirs.has(k)) { activeStickDirs.add(k); dispatchGameInput('keydown', k, k); }
-          });
-        }
-
-        function initNipple() {
-          if (!stickZone || typeof nipplejs === 'undefined') return;
-          if (nippleManager) { nippleManager.destroy(); nippleManager = null; }
-
-          nippleManager = nipplejs.create({
-            zone:       stickZone,
-            mode:       'dynamic',      // appears exactly where you touch
-            restOpacity: 0,             // invisible when idle
-            color:      '#a78bfa',
-            size:       110,
-            threshold:  0.1,            // very responsive dead zone
-            fadeTime:   120,
-            multitouch: false,
-            dataOnly:   false,
-            restJoystick: true,
-          });
-
-          nippleManager.on('move', (evt, data) => {
-            if (!data.vector) return;
-            applyStickVector(data.vector, data.force || 1);
-          });
-
-          nippleManager.on('end', () => {
-            releaseStickDirs();
-          });
-
-          // Haptic on start
-          nippleManager.on('start', () => {
-            if (navigator.vibrate) { try { navigator.vibrate(6); } catch (_) {} }
-          });
-        }
-
-        initNipple();
-
-        /* Re-init if stick/dpad toggle hides/shows stickZone */
-        function reinitNippleIfNeeded() {
-          if (stickZone && stickZone.style.display !== 'none') {
-            initNipple();
-          } else if (nippleManager) {
-            releaseStickDirs();
-            nippleManager.destroy();
-            nippleManager = null;
+          // Smooth exponential sensitivity curve (gentle near center, full at edge)
+          function curve(v) {
+            return Math.sign(v) * Math.pow(Math.abs(v), 1.5);
           }
-        }
 
+          // Universal digital key bindings (Both Arrow keys and WASD)
+          const DIR_BINDINGS = {
+            up:    [ { key: 'ArrowUp',    code: 'ArrowUp' },    { key: 'w', code: 'KeyW' } ],
+            down:  [ { key: 'ArrowDown',  code: 'ArrowDown' },  { key: 's', code: 'KeyS' } ],
+            left:  [ { key: 'ArrowLeft',  code: 'ArrowLeft' },  { key: 'a', code: 'KeyA' } ],
+            right: [ { key: 'ArrowRight', code: 'ArrowRight' }, { key: 'd', code: 'KeyD' } ]
+          };
+
+          function updateDirections(normX, normY) {
+            const dead = 0.22;
+            const desired = new Set();
+
+            if (normY < -dead) desired.add('up');
+            if (normY >  dead) desired.add('down');
+            if (normX < -dead) desired.add('left');
+            if (normX >  dead) desired.add('right');
+
+            // Release directions no longer held
+            heldDirs.forEach(dir => {
+              if (!desired.has(dir)) {
+                heldDirs.delete(dir);
+                DIR_BINDINGS[dir].forEach(b => dispatchGameInput('keyup', b.key, b.code));
+              }
+            });
+
+            // Press newly activated directions
+            desired.forEach(dir => {
+              if (!heldDirs.has(dir)) {
+                heldDirs.add(dir);
+                DIR_BINDINGS[dir].forEach(b => dispatchGameInput('keydown', b.key, b.code));
+              }
+            });
+          }
+
+          function resetStick() {
+            heldDirs.forEach(dir => {
+              DIR_BINDINGS[dir].forEach(b => dispatchGameInput('keyup', b.key, b.code));
+            });
+            heldDirs.clear();
+
+            dispatchGameAxis(0, 0);
+            dispatchGameAxis(1, 0);
+
+            knob.style.transition = 'transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1)';
+            knob.style.transform = 'translate(-50%, -50%)';
+
+            base.classList.remove('active');
+            active = false;
+            activePid = null;
+          }
+
+          zone.addEventListener('pointerdown', e => {
+            // Ignore if touching any overlapping button, tool, or system control
+            if (e.target.closest('.vg-btn, .vg-tools, .vg-system, .vg-dpad')) return;
+            if (active) return;
+            e.preventDefault();
+
+            try { zone.setPointerCapture(e.pointerId); } catch (_) {}
+            active = true;
+            activePid = e.pointerId;
+
+            const zr = zone.getBoundingClientRect();
+            // Clamp within zone with safe padding
+            const cx = Math.max(BASE_R + 8, Math.min(zr.width - BASE_R - 8, e.clientX - zr.left));
+            const cy = Math.max(BASE_R + 8, Math.min(zr.height - BASE_R - 8, e.clientY - zr.top));
+
+            base.style.left = cx + 'px';
+            base.style.top  = cy + 'px';
+            base.classList.add('active');
+
+            knob.style.transition = 'none'; // Instant response during movement
+            knob.style.transform = 'translate(-50%, -50%)';
+
+            ox = zr.left + cx;
+            oy = zr.top  + cy;
+
+            if (navigator.vibrate) { try { navigator.vibrate(6); } catch (_) {} }
+          }, { passive: false });
+
+          zone.addEventListener('pointermove', e => {
+            if (!active || e.pointerId !== activePid) return;
+            e.preventDefault();
+
+            const dx = e.clientX - ox;
+            const dy = e.clientY - oy;
+            const dist = Math.hypot(dx, dy);
+            const clamped = Math.min(dist, MAX_R);
+            const angle = Math.atan2(dy, dx);
+            const kx = Math.cos(angle) * clamped;
+            const ky = Math.sin(angle) * clamped;
+
+            knob.style.transform =
+              `translate(calc(-50% + ${kx.toFixed(1)}px), calc(-50% + ${ky.toFixed(1)}px))`;
+
+            const normX = kx / MAX_R;
+            const normY = ky / MAX_R;
+
+            // 1. Digital keyboard directions (WASD + Arrows)
+            updateDirections(normX, normY);
+
+            // 2. Analog gamepad axes for smooth steering
+            dispatchGameAxis(0, curve(normX));
+            dispatchGameAxis(1, curve(normY));
+          }, { passive: false });
+
+          const endStick = e => {
+            if (e.pointerId === activePid) {
+              resetStick();
+            }
+          };
+
+          zone.addEventListener('pointerup',          endStick);
+          zone.addEventListener('pointercancel',      endStick);
+          zone.addEventListener('lostpointercapture', endStick);
+
+          // Expose reset so controls toggle and releaseAllButtons can invoke it
+          window._joystickReset = resetStick;
+        })();
 
 
         /* ── Swipe-To-Look Engine for 3D Camera & FPS Aiming ── */
@@ -1602,6 +1651,7 @@
 
         /* ── Quick Tools: Stick/Dpad Toggle & Ghost Transparency ── */
         const btnStickToggle = $('vg-stick-toggle');
+        const stickZone = $('vg-stick-zone');
         const dpadEl = $('vg-dpad');
         if (btnStickToggle && stickZone && dpadEl) {
           let useStick = true;
@@ -1615,9 +1665,10 @@
           applyStickMode();
           btnStickToggle.addEventListener('click', () => {
             useStick = !useStick;
+            if (window._joystickReset) window._joystickReset();
             applyStickMode();
-            reinitNippleIfNeeded();
           });
+
         }
 
 
