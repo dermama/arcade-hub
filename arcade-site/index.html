@@ -3,13 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <script>
-/* Arcade Cache & Service Worker Manager (v48)
+/* Arcade Cache & Service Worker Manager (v54)
    - Auto-update: build marker mismatch → purge SHELL caches → one nc-reload.
    - Fast game caches (arcade-games- / arcade-images- prefixes) are NEVER purged here.
+   - Soft purge (data-purge): shell/JSON/JS/CSS only — games stay cached.
+   - Deep purge (data-purge="all" or ?purge=all): deletes ALL caches including
+     heavy game files → full clean re-download, fixes persistent black screens.
    - The SW keeps itself: no unregister (game fast-cache + auto-update intact). */
 (function(){
-  var B = "v48";
+  var B = "v54";
+  try { window.ARCADE_BUILD = B.replace(/^v/, ""); } catch(e){}
   function keepFast(n){ return n.indexOf("arcade-games") === 0 || n.indexOf("arcade-images") === 0; }
+  function purgeAll(){
+    try {
+      if (window.caches && caches.keys) {
+        return caches.keys().then(function(k){
+          return Promise.all(k.map(function(n){ return caches.delete(n); }));
+        }).catch(function(){});
+      }
+    } catch(e){}
+    return Promise.resolve();
+  }
+  function deepReload(){
+    var u = new URL(location.href);
+    u.searchParams.delete("purge"); u.searchParams.set("nc", Date.now());
+    var go = function(){ try { sessionStorage.clear(); } catch(e){} location.replace(u.toString()); };
+    try { purgeAll().then(go); } catch(e){ go(); }
+  }
+  try {
+    if (new URL(location.href).searchParams.get("purge") === "all") { deepReload(); return; }
+  } catch(e){}
   function purgeShell(){
     try {
       if (window.caches && caches.keys) {
@@ -66,10 +89,14 @@
   document.addEventListener("DOMContentLoaded", function(){
     var els = document.querySelectorAll("[data-purge]");
     for (var i = 0; i < els.length; i++) {
-      els[i].addEventListener("click", function(e){ e.preventDefault(); hardReload(); });
+      els[i].addEventListener("click", function(e){
+        e.preventDefault();
+        if (this.getAttribute("data-purge") === "all") { deepReload(); } else { hardReload(); }
+      });
     }
   });
   window.arcadeClearCache = hardReload;
+  window.arcadeDeepPurge = deepReload;
 })();
 </script>
 <!-- v45: Desktop site always — fixed 1360px layout viewport (matches the
@@ -86,7 +113,7 @@
 <link rel="preconnect" href="https://gateway.arcade22cf2.workers.dev" crossorigin>
 <link rel="dns-prefetch" href="https://gateway.arcade22cf2.workers.dev">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=48">
+<link rel="stylesheet" href="/styles.css?v=54">
 </head>
 <body>
 
@@ -137,7 +164,7 @@
 
 <footer>
   <p>Arcade · Browser games gateway</p>
-  <p><button id="purge-cache" data-purge type="button" title="Clear all cached files and load the newest version" style="background:none;border:1px solid var(--acc);color:var(--acc);font:inherit;padding:6px 14px;border-radius:999px;cursor:pointer">↻ Clear cache &amp; update</button></p>
+  <p><button id="purge-cache" data-purge="all" type="button" title="Delete every cached file (games included) and re-download fresh — fixes stuck/black games" style="background:none;border:1px solid var(--acc);color:var(--acc);font:inherit;padding:6px 14px;border-radius:999px;cursor:pointer">↻ Clear cache &amp; update</button></p>
 </footer>
 
 <div id="toast"></div>
@@ -145,7 +172,7 @@
 <script src="/__shim.js?v=45"></script>
 <script src="/config.js?v=45"></script>
 <script src="/app.js?v=45"></script>
-<button id="purge-fab" data-purge type="button" aria-label="Clear cache and load the newest version" title="Clear cache &amp; load newest version"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A7.958 7.958 0 0012 4a8 8 0 108 8h-2a6 6 0 11-1.76-4.24L13 11h7V4l-2.35 2.35z"/></svg><span>Clear cache</span></button>
+<button id="purge-fab" data-purge="all" type="button" aria-label="Clear all cache and load the newest version" title="Clear ALL cache (games included) &amp; load newest version"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A7.958 7.958 0 0012 4a8 8 0 108 8h-2a6 6 0 11-1.76-4.24L13 11h7V4l-2.35 2.35z"/></svg><span>Clear cache</span></button>
 <script>
 /* Hero code-video — the catalogue replayed as a binary/dot-matrix film.
    Samples real thumbnail stills into a glyph grid (1 / 0 / ·) each frame. */

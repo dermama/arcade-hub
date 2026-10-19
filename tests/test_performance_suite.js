@@ -220,7 +220,7 @@ runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
 console.log('\n▶ [Axis 7]: Testing Service Worker Offline & Tiered Caching Strategy...');
 
 runTest('Service Worker contains Tiered Cache configuration', () => {
-  assert(swCode.includes("VERSION = 'v48'"), 'Service worker should be synced to v48');
+  assert(swCode.includes("VERSION = 'v54'"), 'Service worker should be synced to v54');
   assert(swCode.includes('SHELL_CACHE'), 'App shell cache should be defined');
   assert(swCode.includes('GAME_CACHE'), 'Runtime game cache should be defined');
   assert(swCode.includes('IMG_CACHE'), 'Image cache should be defined');
@@ -255,7 +255,7 @@ runTest('game.html sandbox attributes, preconnect, memory cleanup, and v45 links
   assert(gameHtml.includes("addEventListener('pagehide'"), 'Pagehide event listener must be present');
   assert(gameHtml.includes("frame.src = 'about:blank'"), 'Iframe must be blanked on pagehide to purge RAM/VRAM');
   assert(gameHtml.includes('/config.js?v=45'), 'config.js in game.html must be unified to v=45');
-  assert(gameHtml.includes("v=38'"), 'game url query must be unified to v=38');
+  assert(gameHtml.includes("ARCADE_BUILD") && gameHtml.includes("'v=' + (window.ARCADE_BUILD"), 'game url query must follow the build marker (ARCADE_BUILD)');
   assert(gameHtml.includes('fitRelayDesktop'), 'Desktop-mode fit helper must exist in game.html');
   assert(gameHtml.includes('RELAY_DESKTOP_W = 1280'), 'Desktop viewport width must be pinned to 1280px');
   assert(stylesCss.includes('width: 1280px'), 'Relay frame CSS must default to a 1280px desktop viewport');
@@ -268,14 +268,14 @@ runTest('v47: computer behavior everywhere — no rotate UI, no global orientati
   assert(!gameHtml.includes('id="btn-float-rotate"'), 'v47: floating rotate button must be removed');
   assert.strictEqual((gameHtml.match(/screen\.orientation\.lock\(/g) || []).length, 1, 'only the Cloud path may lock orientation (exactly one lock call)');
   assert(!gameHtml.includes('isMobilePortrait'), 'v47: no mobile-portrait auto-flip logic');
-  assert(gameHtml.includes('/styles.css?v=48'), 'game.html styles must be synced to v48');
-  assert(indexHtml.includes('/styles.css?v=48'), 'index.html styles must be synced to v48');
+  assert(gameHtml.includes('/styles.css?v=54'), 'game.html styles must be synced to v54');
+  assert(indexHtml.includes('/styles.css?v=54'), 'index.html styles must be synced to v54');
 });
 
-runTest('v48: cache auto-heal — build marker, SW takeover reload, safe purge, stable game caches', () => {
-  assert(gameHtml.includes('var B = "v48"'), 'game.html build marker must be v48');
-  assert(indexHtml.includes('var B = "v48"'), 'index.html build marker must be v48');
-  assert(swCode.includes("const VERSION = 'v48'"), 'SW must be v48');
+runTest('v54: cache auto-heal — build marker, SW takeover reload, safe purge, stable game caches', () => {
+  assert(gameHtml.includes('var B = "v54"'), 'game.html build marker must be v54');
+  assert(indexHtml.includes('var B = "v54"'), 'index.html build marker must be v54');
+  assert(swCode.includes("const VERSION = 'v54'"), 'SW must be v54');
   assert(swCode.includes("'arcade-games-static'") && swCode.includes("'arcade-images-static'"), 'game/image caches must be version-stable');
   assert(swCode.includes('migrateLegacyInto'), 'legacy versioned game caches must be migrated, not dropped');
   assert(swCode.includes('self.skipWaiting()') && swCode.includes('self.clients.claim()'), 'SW must activate and take over immediately');
@@ -284,6 +284,20 @@ runTest('v48: cache auto-heal — build marker, SW takeover reload, safe purge, 
   assert(gameHtml.includes('keepFast') && indexHtml.includes('keepFast'), 'purge must preserve arcade-games-*/arcade-images-*');
   assert(gameHtml.includes('id="btn-purge"') && gameHtml.includes('data-purge'), 'game.html needs a visible purge button');
   assert(stylesCss.includes('#purge-fab'), 'index floating purge button styles must stay');
+});
+
+runTest('v54: smart tiering — data/code network-first, heavy assets stay cached, deep purge available', () => {
+  assert(swCode.includes('isCodeAsset'), 'SW must classify code/data assets (JSON/JS/CSS)');
+  assert(swCode.includes('networkFirst(event.request, SHELL_CACHE)'), 'data/code must go through network-first (fresh catalog on every visit)');
+  assert(swCode.includes('isFontAsset'), 'fonts must have their own classifier');
+  assert(swCode.includes('isGameAsset(url)') && swCode.includes('cacheFirst(event.request, GAME_CACHE)'), 'heavy game assets must stay cache-first (no re-downloads)');
+  assert(swCode.includes("cache: 'no-cache'"), 'network-first must revalidate against the HTTP cache');
+  assert(swCode.includes('isShellAsset') === false, 'old catch-all shell classifier must be gone');
+  assert(gameHtml.includes('deepReload') && indexHtml.includes('deepReload'), 'pages must implement deep purge');
+  assert(gameHtml.includes('"purge") === "all"') && indexHtml.includes('"purge") === "all"'), '?purge=all must trigger the deep purge');
+  assert(gameHtml.includes('searchParams.delete("purge")'), 'deep purge must remove the purge param before reloading (no loop)');
+  assert(gameHtml.includes('purgeAll'), 'deep purge must delete ALL caches (games included)');
+  assert(gameHtml.includes('window.arcadeDeepPurge'), 'deep purge must be exposed for manual escape hatch');
 });
 
 runTest('Cloud press: auto-fullscreen + auto-landscape + screen-aspect fit', () => {

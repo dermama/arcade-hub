@@ -2,11 +2,16 @@
    ARCADE HUB — Service Worker
    Tiered caching strategy optimised for browser-game platform
    ================================================================ */
-/* NOTE (v48): bump VERSION on every release — cache-first shell matching with
-   ignoreSearch serves stale CSS/JS to returning devices until this changes.
-   GAME/IMG caches use STABLE names: heavy game files survive every update,
-   and legacy versioned game/image caches are migrated, never dropped. */
-const VERSION = 'v48';
+/* NOTE (v54): bump VERSION (and the B build marker in index.html/game.html)
+   on every release. Tiered strategy:
+   - HTML + JSON data (games.json/images.json) + CSS/JS → NETWORK-FIRST:
+     catalog and updates always appear, cache is only an offline fallback.
+   - Thumbnails → stale-while-revalidate; fonts + heavy game assets
+     (wasm/data/pck/...) → CACHE-FIRST: the useful stuff stays cached for
+     instant relaunches, so games never re-download on updates.
+   - GAME/IMG caches use STABLE names: heavy game files survive every update,
+     and legacy versioned game/image caches are migrated, never dropped. */
+const VERSION = 'v54';
 const SHELL_CACHE = `arcade-shell-${VERSION}`;
 const GAME_CACHE = 'arcade-games-static';
 const IMG_CACHE = 'arcade-images-static';
@@ -98,25 +103,34 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  /* 2. App Shell Assets (CSS, JS) → Cache-First with ignoreSearch (Solves R4) */
-  if (isShellAsset(url)) {
-    event.respondWith(cacheFirst(event.request, SHELL_CACHE));
-    return;
-  }
-
-  /* 3. Thumbnails & images → Stale-While-Revalidate */
-  if (isImageAsset(url)) {
-    event.respondWith(staleWhileRevalidate(event.request, IMG_CACHE));
-    return;
-  }
-
-  /* 4. Heavy game assets (wasm, data, unityweb, bin...) → Cache-First runtime cache (Solves R5/R6) */
+  /* 2. Heavy game assets (wasm, data, unityweb, bin...) → Cache-First runtime cache (Solves R5/R6)
+     Kept BEFORE code assets so framework.js/loader.js always land in GAME_CACHE. */
   if (isGameAsset(url)) {
     event.respondWith(cacheFirst(event.request, GAME_CACHE));
     return;
   }
 
-  /* 5. Everything else → Network with cache fallback */
+  /* 3. Code & data (CSS, JS, games.json, images.json) → NETWORK-FIRST (v54):
+     fixes stale catalog / stale CSS-JS on returning devices — updates always
+     appear; the cache is only used as an offline fallback. */
+  if (isCodeAsset(url)) {
+    event.respondWith(networkFirst(event.request, SHELL_CACHE));
+    return;
+  }
+
+  /* 4. Fonts → Cache-First with ignoreSearch (static, rarely change) */
+  if (isFontAsset(url)) {
+    event.respondWith(cacheFirst(event.request, SHELL_CACHE));
+    return;
+  }
+
+  /* 5. Thumbnails & images → Stale-While-Revalidate */
+  if (isImageAsset(url)) {
+    event.respondWith(staleWhileRevalidate(event.request, IMG_CACHE));
+    return;
+  }
+
+  /* 6. Everything else → Network with cache fallback */
   event.respondWith(networkFirst(event.request, SHELL_CACHE));
 });
 
@@ -128,9 +142,12 @@ function isHtmlRequest(request, url) {
          (request.headers.get('accept') && request.headers.get('accept').includes('text/html'));
 }
 
-function isShellAsset(url) {
+function isCodeAsset(url) {
   const p = url.pathname;
-  return SHELL_URLS.includes(p) || /\.(css|js|json|woff2?|ttf|otf)$/i.test(p);
+  return SHELL_URLS.includes(p) || /\.(css|js|json)$/i.test(p);
+}
+function isFontAsset(url) {
+  return /\.(woff2?|ttf|otf)$/i.test(url.pathname);
 }
 function isImageAsset(url) {
   const p = url.pathname;
@@ -171,7 +188,9 @@ async function staleWhileRevalidate(request, cacheName) {
 
 async function networkFirst(request, fallbackCacheName) {
   try {
-    const response = await fetch(request);
+    /* cache:'no-cache' forces revalidation against the browser HTTP cache so
+       data/code updates are detected immediately on every visit. */
+    const response = await fetch(request, { cache: 'no-cache' });
     if (response.ok && fallbackCacheName) {
       const cache = await caches.open(fallbackCacheName);
       cache.put(request, response.clone());
