@@ -5,7 +5,7 @@ import CFG from "./games.json";
 const HOSTS = CFG.hosts;
 const ISO = new Set(CFG.iso || []);
 const ROOT = CFG.root_mounts || {};
-const SHIM_TAG = '<script src="/__shim.js?v=45"></script>';
+const SHIM_TAG = '<script src="/__shim.js?v=46"></script>';
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -156,7 +156,7 @@ function rewriteCss(css, mount) {
   return css;
 }
 
-function inject(html) {
+function inject(html, key) {
   const metaTag = '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">';
   const fitStyle = '<style id="arcade-game-autofit">' +
     'html,body{margin:0!important;padding:0!important;width:100%!important;height:100%!important;height:100dvh!important;overflow:hidden!important;background:#000!important;display:flex!important;align-items:center!important;justify-content:center!important}' +
@@ -171,7 +171,11 @@ function inject(html) {
     html = metaTag + html;
   }
 
-  const payload = SHIM_TAG + fitStyle;
+  /* v55: hand the per-game storage namespace to the shim before it runs.
+     All gateway games share one origin — without this, their localStorage /
+     IndexedDB / caches collide and a bad write in one game sticks forever. */
+  const nsTag = '<script>window.__ARCADE_NS=' + JSON.stringify(String(key || "")) + ';<\/script>';
+  const payload = nsTag + SHIM_TAG + fitStyle;
   if (/<head[^>]*>/i.test(html)) {
     return html.replace(/<head[^>]*>/i, (m) => m + payload);
   }
@@ -204,20 +208,21 @@ function clearTokens(u) {
 
 function clearPage(u) {
   const tokens = clearTokens(u);
+  const full = u.searchParams.get("full") === "1"; // v55: nuclear mode — everything on this origin
   const t = JSON.stringify(tokens);
   return `<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title>…</title><style>
 body{background:transparent;color:#eef1f8;font-family:system-ui,sans-serif;margin:0;padding:14px}
 </style></head><body><div id="msg">Clearing game data…</div>
 <script>
 (function(){
-  var tokens=${t};
+  var tokens=${t};var FULL=${full};
   var res={ok:false,caches:0,idb:0,ls:0,ss:0,opfs:0,error:"none"};
-  function match(s){s=String(s).toLowerCase();for(var i=0;i<tokens.length;i++){if(s.indexOf(tokens[i])>-1)return true;}return false;}
+  function match(s){if(FULL)return true;s=String(s).toLowerCase();for(var i=0;i<tokens.length;i++){if(s.indexOf(tokens[i])>-1)return true;}return false;}
   var msgs=[];
   function done(){try{parent.postMessage({type:"arcade:clear-result",result:res},"*");}catch(e){}try{window.opener&&window.opener.postMessage({type:"arcade:clear-result",result:res},"*");}catch(e){}try{var m=document.getElementById("msg");if(m){m.textContent=res.error==="none"?"Data cleared ✓":"Clear finished (with caveats).";}}catch(e){}setTimeout(function(){try{self.close();}catch(e){}},350);}
   function p1(next){try{caches.keys().then(function(ks){if(ks&&navigator.serviceWorker&&navigator.serviceWorker.controller&&false){}for(var i=0;i<ks.length;i++){if(match(ks[i])){caches.delete(ks[i]).then(function(){res.caches++;next();});return;}}next();}).catch(function(){next();});}catch(e){res.error="caches:"+e.message;next();}}
   function p2(next){try{var db2=indexedDB.databases;if(!db2){next();return;}db2.call(indexedDB).then(function(dbs){var i=0;function step(){if(i>=dbs.length){next();return;}var d=dbs[i++];if(d&&match(d.name||"")){try{indexedDB.deleteDatabase(d.name).onsuccess=function(){res.idb++;step();};indexedDB.deleteDatabase(d.name).onerror=step;indexedDB.deleteDatabase(d.name).onblocked=step;}catch(e){step();}}else{step();}}step();}).catch(function(){next();});}catch(e){res.error="idb:"+e.message;next();}}
-  function p3(next){try{var L=[window.localStorage,window.sessionStorage];for(var s=0;s<L.length;s++){for(var i=L[s].length-1;i>=0;i--){var k=L[s].key(i);if(match(k)){$:s===0?res.ls++:res.ss++;try{L[s].removeItem(k);}catch(e){}}}}next();}catch(e){res.error="stores:"+e.message;next();}}
+  function p3(next){try{var L=[window.localStorage,window.sessionStorage];if(FULL){for(var s=0;s<L.length;s++){try{var n=L[s].length;L[s].clear();if(s===0){res.ls+=n;}else{res.ss+=n;}}catch(e){}}next();return;}for(var s2=0;s2<L.length;s2++){for(var i=L[s2].length-1;i>=0;i--){var k=L[s2].key(i);if(match(k)){if(s2===0){res.ls++;}else{res.ss++;}try{L[s2].removeItem(k);}catch(e){}}}}next();}catch(e){res.error="stores:"+e.message;next();}}
   function p4(next){try{var st=navigator.storage;if(!st||!st.getDirectory){next();return;}st.getDirectory().then(function(root){if(!root.entries||!root.removeEntry){next();return;}var walk=[];var it=root.entries();function loop(){it.next().then(function(r){if(r.done){next();return;}var n=r.value[0];if(match(n)){root.removeEntry(n,{recursive:true}).then(function(){res.opfs++;loop();}).catch(function(){loop();});}else{loop();}});}loop();}).catch(function(){next();});}catch(e){res.error="opfs:"+e.message;next();}}
   p1(function(){p2(function(){p3(function(){p4(function(){res.ok=true;done();});});});});
 })();
@@ -327,6 +332,9 @@ export default {
       fetchOptions.cf = {
         cacheEverything: true,
         cacheTtl: 604800,
+        /* v55: an upstream error must never stick in the edge cache —
+           "0" expires immediately, negative means "do not cache at all" */
+        cacheTtlByStatus: { "200-299": 604800, "300-399": -1, "400-599": -1 },
       };
     }
 
@@ -357,17 +365,19 @@ export default {
       let html = await up.text();
       if (absBase) html = rewriteRoot(html, absBase);
       out.set("Cache-Control", "no-cache, no-store, must-revalidate");
-      return new Response(inject(html), { status: up.status, headers: out });
+      return new Response(inject(html, key), { status: up.status, headers: out });
     }
 
     if (absBase && (lc.includes("text/css") || lc.includes("css"))) {
       const css = await up.text();
-      out.set("Cache-Control", "public, max-age=86400");
+      out.set("Cache-Control", up.ok ? "public, max-age=86400" : "no-store");
       return new Response(rewriteCss(css, absBase), { status: up.status, headers: out });
     }
 
     if (isStatic) {
-      out.set("Cache-Control", "public, max-age=604800, immutable");
+      /* v55: only ok responses earn the long immutable cache — a cached error
+         used to freeze broken assets in the browser for 7 days */
+      out.set("Cache-Control", up.ok ? "public, max-age=604800, immutable" : "no-store");
     }
 
     return new Response(up.body, { status: up.status, headers: out });

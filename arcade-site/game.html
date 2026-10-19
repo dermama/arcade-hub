@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <script>
-    /* Arcade Cache & Service Worker Manager (v54)
+    /* Arcade Cache & Service Worker Manager (v55)
        - Auto-update: build marker mismatch → purge SHELL caches → one nc-reload.
        - Fast game caches (arcade-games- / arcade-images- prefixes) are NEVER purged here.
        - Soft purge (data-purge): shell/JSON/JS/CSS only — games stay cached.
@@ -12,7 +12,7 @@
          heavy game files → full clean re-download, fixes persistent black screens.
        - The SW keeps itself: no unregister (game fast-cache + auto-update intact). */
     (function () {
-      var B = "v54";
+      var B = "v55";
       try { window.ARCADE_BUILD = B.replace(/^v/, ""); } catch (e) { }
       function keepFast(n) { return n.indexOf("arcade-games") === 0 || n.indexOf("arcade-images") === 0; }
       function purgeAll() {
@@ -25,11 +25,37 @@
         } catch (e) { }
         return Promise.resolve();
       }
+      /* v55: gateway-origin storage wipe. ALL gateway games share ONE origin,
+         so a poisoned key from any game can black-screen this one forever —
+         this hidden iframe factory-resets that origin (localStorage, IDB,
+         caches, OPFS). It resolves on arcade:clear-result, or after 2s max. */
+      function gatewayWipe(done) {
+        var finished = false;
+        function fin() { if (finished) return; finished = true; try { done(); } catch (e) { } }
+        var start = function () {
+          try {
+            window.addEventListener("message", function (ev) {
+              try { if (ev && ev.data && ev.data.type === "arcade:clear-result") fin(); } catch (e) { }
+            });
+            var f = document.createElement("iframe");
+            f.setAttribute("aria-hidden", "true");
+            f.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;border:0";
+            f.src = "https://gateway.arcade22cf2.workers.dev/__clear?full=1&nc=" + Date.now();
+            (document.body || document.documentElement).appendChild(f);
+            setTimeout(function () {
+              try { f.parentNode && f.parentNode.removeChild(f); } catch (e) { }
+              fin();
+            }, 2000);
+          } catch (e) { fin(); }
+        };
+        if (document.body) start();
+        else document.addEventListener("DOMContentLoaded", start);
+      }
       function deepReload() {
         var u = new URL(location.href);
         u.searchParams.delete("purge"); u.searchParams.set("nc", Date.now());
         var go = function () { try { sessionStorage.clear(); } catch (e) { } location.replace(u.toString()); };
-        try { purgeAll().then(go); } catch (e) { go(); }
+        gatewayWipe(function () { try { purgeAll().then(go); } catch (e) { go(); } });
       }
       try {
         if (new URL(location.href).searchParams.get("purge") === "all") { deepReload(); return; }
@@ -124,7 +150,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=54">
+  <link rel="stylesheet" href="/styles.css?v=55">
 </head>
 
 <body>
@@ -487,7 +513,7 @@
         const p = g.root
           ? '/' + path.replace(/\/$/, '') + '/'
           : '/play/' + g.key + '/' + path;
-        return BASE + p + (p.includes('?') ? '&' : '?') + 'v=' + (window.ARCADE_BUILD || '54');
+        return BASE + p + (p.includes('?') ? '&' : '?') + 'v=' + (window.ARCADE_BUILD || '55');
       }
 
       /* ── load games.json ── */

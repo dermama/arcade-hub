@@ -15,13 +15,62 @@
       window.__realHardware = RH;
     }
 
+    /* ── v55 Origin Isolation: per-game storage namespaces ──
+       The gateway serves ALL games from one origin, so they share
+       localStorage / IndexedDB / CacheStorage. Without a prefix, one game's
+       settings/saves/quality state poison every other game — and a single
+       bad write sticks forever. Every game gets a stable prefix derived from
+       its mount path (or window.__ARCADE_NS injected by the worker).
+       Legacy unprefixed keys are intentionally IGNORED (self-heals browsers
+       already poisoned by the old shared-state shim). ── */
+    var NS = "a1.";
+    try {
+      var nsRaw = "";
+      try { nsRaw = String(window.__ARCADE_NS || ""); } catch (e0) {}
+      if (!nsRaw) {
+        try {
+          var nsSegs = (location.pathname || "/").split("/").filter(Boolean);
+          nsRaw = (nsSegs[0] === "play" || nsSegs[0] === "s") ? (nsSegs[1] || "x") : (nsSegs[0] || "x");
+        } catch (e1) { nsRaw = "x"; }
+      }
+      NS = "a1." + nsRaw.replace(/[^a-z0-9_-]/gi, "").toLowerCase().slice(0, 32) + ".";
+    } catch (e2) { NS = "a1.x."; }
+    window.__ARCADE_NS_RESOLVED = NS;
+    function nsK(k) { k = String(k); return k.indexOf(NS) === 0 ? k : NS + k; }
+    function pget(k) {
+      try { return Storage.prototype.getItem.call(localStorage, nsK(k)); } catch (e) { return null; }
+    }
+    try {
+      var IOP = window.IDBFactory && IDBFactory.prototype;
+      if (IOP && !IOP.__arcNs) {
+        IOP.__arcNs = true;
+        var oOpen = IOP.open, oDelDb = IOP.deleteDatabase, oDbs = IOP.databases;
+        IOP.open = function (name) { if (name == null) return oOpen.apply(this, arguments); arguments[0] = nsK(name); return oOpen.apply(this, arguments); };
+        if (oDelDb) IOP.deleteDatabase = function (name) { if (name == null) return oDelDb.apply(this, arguments); arguments[0] = nsK(name); return oDelDb.apply(this, arguments); };
+        if (oDbs) IOP.databases = function () {
+          return oDbs.apply(this, arguments).then(function (list) {
+            try { for (var i = 0; i < list.length; i++) { var d = list[i]; if (d && d.name && d.name.indexOf(NS) === 0) d.name = d.name.slice(NS.length); } } catch (e) {}
+            return list;
+          });
+        };
+      }
+      var CSP = window.CacheStorage && CacheStorage.prototype;
+      if (CSP && !CSP.__arcNs) {
+        CSP.__arcNs = true;
+        var oCOpen = CSP.open, oCHas = CSP.has, oCDel = CSP.delete;
+        CSP.open = function (name) { if (name == null) return oCOpen.apply(this, arguments); arguments[0] = nsK(name); return oCOpen.apply(this, arguments); };
+        if (oCHas) CSP.has = function (name) { return name == null ? oCHas.apply(this, arguments) : oCHas.call(this, nsK(name)); };
+        if (oCDel) CSP.delete = function (name) { return name == null ? oCDel.apply(this, arguments) : oCDel.call(this, nsK(name)); };
+      }
+    } catch (e3) {}
+
     var LOW = RH.touch > 0 || (RH.cores > 0 && RH.cores <= 4) || (RH.memory > 0 && RH.memory <= 4);
     var V_LOW = (RH.cores > 0 && RH.cores <= 2) || (RH.memory > 0 && RH.memory <= 2);
     var perfOn, resOn, drsAuto;
     try {
-      var lp = localStorage.getItem("arcade.perf");
-      var lr = localStorage.getItem("arcade.res");
-      var ld = localStorage.getItem("arcade.drs_auto");
+      var lp = pget("arcade.perf");
+      var lr = pget("arcade.res");
+      var ld = pget("arcade.drs_auto");
       perfOn = lp === null ? LOW : lp === "1";
       resOn = lr === null ? false : lr === "1";
       drsAuto = ld === null ? true : ld === "1";
@@ -148,10 +197,9 @@
       };
     }
     AdaptiveQuality.prototype.detectTier = function () {
-      try {
-        var saved = localStorage.getItem("arcade.quality-tier");
-        if (saved) return saved;
-      } catch (e) {}
+      /* v55: the legacy persisted tier ("arcade.quality-tier") was a permanent
+         one-way ratchet shared by every game on the gateway origin — it is
+         intentionally ignored so previously poisoned browsers self-heal. */
       var mem = (RH && RH.memory) || 4;
       var cores = (RH && RH.cores) || 4;
       if (mem <= 2 || cores <= 2) return "ultra-low";
@@ -163,20 +211,39 @@
       return this.presets[this.tier] || this.presets["medium"];
     };
     AdaptiveQuality.prototype.learn = function (avgFps) {
+      var tiers = ["high", "medium", "low", "ultra-low"];
       if (avgFps < 28 && this.tier !== "ultra-low") {
         /* Fix #3: Prevent double-drop — skip if DRS already adjusted recently (<3s cooldown) */
         if (window.ARCADE && window.ARCADE.DRS &&
             performance.now() - window.ARCADE.DRS.lastAdjustment < 3000) return;
-        var tiers = ["high", "medium", "low", "ultra-low"];
         var idx = tiers.indexOf(this.tier);
         if (idx < tiers.length - 1) {
           this.tier = tiers[idx + 1];
-          try { localStorage.setItem("arcade.quality-tier", this.tier); } catch (e) {}
+          this.goodTime = 0;
+          /* v55: auto-downgrades are session-local — never persisted, so one
+             slow window can not lock every future session into low quality. */
           var p = this.getPreset();
           if (window.ARCADE && window.ARCADE.DRS) {
             window.ARCADE.DRS.minFactor = Math.min(window.ARCADE.DRS.minFactor, p.drs);
             window.ARCADE.DRS.lastAdjustment = performance.now(); // own the cooldown
             window.ARCADE.DRS.applyFactor(p.drs);
+          }
+        }
+      } else if (avgFps >= 50) {
+        /* v55: up-recovery — sustained healthy FPS lifts the tier back (the old
+           engine could only ever go down). ~30s of good frames per step. */
+        this.goodTime = (this.goodTime || 0) + 0.6;
+        if (this.goodTime >= 18 && this.tier !== "high") {
+          var up = tiers.indexOf(this.tier);
+          if (up > 0) {
+            this.tier = tiers[up - 1];
+            this.goodTime = 0;
+            var p2 = this.getPreset();
+            if (window.ARCADE && window.ARCADE.DRS) {
+              window.ARCADE.DRS.minFactor = Math.max(window.ARCADE.DRS.minFactor, Math.min(1, p2.drs));
+              window.ARCADE.DRS.lastAdjustment = performance.now();
+              window.ARCADE.DRS.applyFactor(Math.max(window.ARCADE.DRS.currentFactor, p2.drs));
+            }
           }
         }
       }
@@ -205,6 +272,7 @@
           var needsSharp = factor < 0.9;
           for (var i = 0; i < canvases.length; i++) {
             var c = canvases[i];
+            if (c.isConnected === false) continue; /* v55: never resize detached/offscreen canvases */
             if (needsSharp) {
               if (c.classList && c.classList.add) c.classList.add("arc-sharp");
             } else {
@@ -431,6 +499,7 @@
         var origGet = SP.getItem;
         var origRemove = SP.removeItem;
         var origClear = SP.clear;
+        var origKey = SP.key;
 
         var memCache = {};
         var dirtyQueue = {};
@@ -472,6 +541,7 @@
 
         SP.getItem = function (key) {
           if (this === localStorage) {
+            key = nsK(key);
             if (Object.prototype.hasOwnProperty.call(memCache, key)) {
               return memCache[key];
             }
@@ -479,41 +549,67 @@
             memCache[key] = val;
             return val;
           }
+          if (this === sessionStorage) return origGet.call(this, nsK(key));
           return origGet.apply(this, arguments);
         };
 
         SP.setItem = function (key, value) {
           if (this === localStorage) {
+            key = nsK(key);
             var str = String(value);
             memCache[key] = str;
             dirtyQueue[key] = str;
             scheduleFlush();
             return;
           }
+          if (this === sessionStorage) return origSet.call(this, nsK(key), value);
           return origSet.apply(this, arguments);
         };
 
         SP.removeItem = function (key) {
           if (this === localStorage) {
+            key = nsK(key);
             delete memCache[key];
             dirtyQueue[key] = null;
             scheduleFlush();
             return;
           }
+          if (this === sessionStorage) return origRemove.call(this, nsK(key));
           return origRemove.apply(this, arguments);
         };
 
         SP.clear = function () {
-          if (this === localStorage) {
-            memCache = {};
-            dirtyQueue = {};
-            return origClear.apply(this, arguments);
+          /* v55: scoped clear — wipe only THIS game's namespaced keys, never
+             other games' data sitting on the same gateway origin. */
+          if (this === localStorage || this === sessionStorage) {
+            var store = this;
+            var rem = [];
+            try {
+              for (var i = 0; i < store.length; i++) {
+                var k = origKey.call(store, i);
+                if (k && k.indexOf(NS) === 0) rem.push(k);
+              }
+            } catch (e) {}
+            if (store === localStorage) {
+              for (var j = 0; j < rem.length; j++) delete memCache[rem[j]];
+              for (var dq in dirtyQueue) {
+                if (Object.prototype.hasOwnProperty.call(dirtyQueue, dq) && dq.indexOf(NS) === 0) delete dirtyQueue[dq];
+              }
+            }
+            for (var x = 0; x < rem.length; x++) {
+              try { origRemove.call(store, rem[x]); } catch (e2) {}
+            }
+            return;
           }
           return origClear.apply(this, arguments);
         };
 
         window.addEventListener("beforeunload", function () {
           /* Fix #1: Flush any dirty keys even if the idle timer already fired */
+          if (Object.keys(dirtyQueue).length > 0) flushWAL();
+        });
+        window.addEventListener("pagehide", function () {
+          /* v55: mobile browsers often skip beforeunload entirely — flush here too */
           if (Object.keys(dirtyQueue).length > 0) flushWAL();
         });
       } catch (e) {}

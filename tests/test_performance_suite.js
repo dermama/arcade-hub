@@ -206,12 +206,13 @@ runTest('Cloudflare Worker has Edge Caching configuration enabled', () => {
   assert(workerCode.includes('cf = {') || workerCode.includes('cf: {'), 'Worker should pass cf cache configuration');
   assert(workerCode.includes('cacheEverything: true'), 'Worker should use cacheEverything: true for static assets');
   assert(workerCode.includes('cacheTtl: 604800'), 'Worker should cache static game files for 7 days (604800s)');
+  assert(workerCode.includes('cacheTtlByStatus'), 'v55: non-2xx responses must never stick in the edge cache');
 });
 
 runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
-  assert(workerCode.includes('Cache-Control", "public, max-age=604800, immutable"'), 'Static game assets must have immutable cache headers');
+  assert(workerCode.includes('up.ok ? "public, max-age=604800, immutable" : "no-store"'), 'v55: only ok responses get the immutable header — errors must be no-store');
   assert(workerCode.includes('Cache-Control", "no-cache, no-store, must-revalidate"'), 'HTML documents must not be stale-cached');
-  assert(workerCode.includes('__shim.js?v=45'), 'Shim tag version must match latest build v45');
+  assert(workerCode.includes('__shim.js?v=46'), 'Shim tag version must match latest build v46');
 });
 
 // -------------------------------------------------------------------
@@ -220,7 +221,7 @@ runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
 console.log('\n▶ [Axis 7]: Testing Service Worker Offline & Tiered Caching Strategy...');
 
 runTest('Service Worker contains Tiered Cache configuration', () => {
-  assert(swCode.includes("VERSION = 'v54'"), 'Service worker should be synced to v54');
+  assert(swCode.includes("VERSION = 'v55'"), 'Service worker should be synced to v55');
   assert(swCode.includes('SHELL_CACHE'), 'App shell cache should be defined');
   assert(swCode.includes('GAME_CACHE'), 'Runtime game cache should be defined');
   assert(swCode.includes('IMG_CACHE'), 'Image cache should be defined');
@@ -268,14 +269,14 @@ runTest('v47: computer behavior everywhere — no rotate UI, no global orientati
   assert(!gameHtml.includes('id="btn-float-rotate"'), 'v47: floating rotate button must be removed');
   assert.strictEqual((gameHtml.match(/screen\.orientation\.lock\(/g) || []).length, 1, 'only the Cloud path may lock orientation (exactly one lock call)');
   assert(!gameHtml.includes('isMobilePortrait'), 'v47: no mobile-portrait auto-flip logic');
-  assert(gameHtml.includes('/styles.css?v=54'), 'game.html styles must be synced to v54');
-  assert(indexHtml.includes('/styles.css?v=54'), 'index.html styles must be synced to v54');
+  assert(gameHtml.includes('/styles.css?v=55'), 'game.html styles must be synced to v55');
+  assert(indexHtml.includes('/styles.css?v=55'), 'index.html styles must be synced to v55');
 });
 
-runTest('v54: cache auto-heal — build marker, SW takeover reload, safe purge, stable game caches', () => {
-  assert(gameHtml.includes('var B = "v54"'), 'game.html build marker must be v54');
-  assert(indexHtml.includes('var B = "v54"'), 'index.html build marker must be v54');
-  assert(swCode.includes("const VERSION = 'v54'"), 'SW must be v54');
+runTest('v55: cache auto-heal — build marker, SW takeover reload, safe purge, stable game caches', () => {
+  assert(gameHtml.includes('var B = "v55"'), 'game.html build marker must be v55');
+  assert(indexHtml.includes('var B = "v55"'), 'index.html build marker must be v55');
+  assert(swCode.includes("const VERSION = 'v55'"), 'SW must be v55');
   assert(swCode.includes("'arcade-games-static'") && swCode.includes("'arcade-images-static'"), 'game/image caches must be version-stable');
   assert(swCode.includes('migrateLegacyInto'), 'legacy versioned game caches must be migrated, not dropped');
   assert(swCode.includes('self.skipWaiting()') && swCode.includes('self.clients.claim()'), 'SW must activate and take over immediately');
@@ -298,6 +299,27 @@ runTest('v54: smart tiering — data/code network-first, heavy assets stay cache
   assert(gameHtml.includes('searchParams.delete("purge")'), 'deep purge must remove the purge param before reloading (no loop)');
   assert(gameHtml.includes('purgeAll'), 'deep purge must delete ALL caches (games included)');
   assert(gameHtml.includes('window.arcadeDeepPurge'), 'deep purge must be exposed for manual escape hatch');
+});
+
+runTest('v55: origin isolation & self-heal — storage namespaces, gateway wipe, no cache poison', () => {
+  assert(shimCode.includes('window.__ARCADE_NS'), 'shim must read the worker-injected per-game namespace');
+  assert(shimCode.includes('"a1."'), 'shim must use an a1.-style origin namespace prefix');
+  assert(shimCode.includes('IDBFactory.prototype'), 'shim must namespace IndexedDB open/deleteDatabase/databases');
+  assert(shimCode.includes('IOP.databases'), 'indexedDB.databases must hide the namespace prefix');
+  assert(shimCode.includes('CacheStorage.prototype'), 'shim must namespace CacheStorage names');
+  assert(shimCode.includes('pagehide'), 'shim must flush the WAL on pagehide (mobile skips beforeunload)');
+  assert(!shimCode.includes('getItem("arcade.quality-tier")') && !shimCode.includes('setItem("arcade.quality-tier")'), 'legacy quality-tier ratchet must be fully removed (self-heal)');
+  assert(shimCode.includes('up-recovery'), 'learn() must be able to recover tiers upward, not only downgrade');
+  assert(shimCode.includes('c.isConnected === false'), 'applyFactor must skip detached canvases');
+  assert(shimCode.includes('origKey'), 'scoped Storage.clear must enumerate via the raw key()');
+  assert(shimCode.includes('nsK(key)'), 'storage methods must translate keys into the game namespace');
+  assert(workerCode.includes('window.__ARCADE_NS='), 'worker must inject __ARCADE_NS before the shim runs');
+  assert(workerCode.includes('searchParams.get("full")'), 'worker /__clear must support full=1 (origin factory reset)');
+  assert(gameHtml.includes('gatewayWipe') && indexHtml.includes('gatewayWipe'), 'pages must implement gatewayWipe');
+  assert(gameHtml.includes('/__clear?full=1') && indexHtml.includes('/__clear?full=1'), 'gateway wipe must call /__clear?full=1');
+  assert(gameHtml.includes('arcade:clear-result') && indexHtml.includes('arcade:clear-result'), 'wipes must await the clear-result ping');
+  assert(gameHtml.includes('gatewayWipe(function () { try { purgeAll()'), 'deep purge must wipe the gateway origin first (game.html)');
+  assert(indexHtml.includes('gatewayWipe(function(){ try { purgeAll()'), 'deep purge must wipe the gateway origin first (index.html)');
 });
 
 runTest('Cloud press: auto-fullscreen + auto-landscape + screen-aspect fit', () => {
