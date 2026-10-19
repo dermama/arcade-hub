@@ -1462,31 +1462,43 @@
           } catch (e) { }
         }
 
-        /* ── 360° Analog Joystick Engine ── */
+        /* ── Floating 360° Analog Joystick Engine ── */
         const stickZone = $('vg-stick-zone');
         const stickBase = $('vg-stick-base');
         const stickKnob = $('vg-stick-knob');
-        let stickActive = false, stickPointerId = null, stickOrigin = { x: 0, y: 0 };
+        let stickActive = false, stickPointerId = null;
+        let stickOrigin = { x: 0, y: 0 };
         const activeStickDirs = new Set();
 
+        // Curved sensitivity: slow near center, full speed at edge — feels natural
+        function applyCurve(v, exp = 1.6) {
+          return Math.sign(v) * Math.pow(Math.abs(v), exp);
+        }
+
         function updateStickDirections(nx, ny) {
-          const deadzone = 0.30;
+          // 8-directional: use angle + magnitude for accurate diagonals
+          const mag = Math.hypot(nx, ny);
+          const deadzone = 0.18;
           const wanted = new Set();
 
-          if (ny < -deadzone) { wanted.add('ArrowUp'); wanted.add('KeyW'); }
-          if (ny > deadzone) { wanted.add('ArrowDown'); wanted.add('KeyS'); }
-          if (nx < -deadzone) { wanted.add('ArrowLeft'); wanted.add('KeyA'); }
-          if (nx > deadzone) { wanted.add('ArrowRight'); wanted.add('KeyD'); }
+          if (mag > deadzone) {
+            const angle = Math.atan2(ny, nx); // radians
+            const deg = (angle * 180 / Math.PI + 360) % 360;
 
-          /* Release no-longer-wanted keys */
+            // Forward / Back (Y-axis)
+            if (ny < -deadzone) { wanted.add('ArrowUp');    wanted.add('KeyW'); }
+            if (ny >  deadzone) { wanted.add('ArrowDown');  wanted.add('KeyS'); }
+            // Left / Right (X-axis)
+            if (nx < -deadzone) { wanted.add('ArrowLeft');  wanted.add('KeyA'); }
+            if (nx >  deadzone) { wanted.add('ArrowRight'); wanted.add('KeyD'); }
+          }
+
           activeStickDirs.forEach(k => {
             if (!wanted.has(k)) {
               activeStickDirs.delete(k);
               dispatchGameInput('keyup', k, k);
             }
           });
-
-          /* Press newly-wanted keys */
           wanted.forEach(k => {
             if (!activeStickDirs.has(k)) {
               activeStickDirs.add(k);
@@ -1496,35 +1508,59 @@
         }
 
         function resetStickInput() {
-          activeStickDirs.forEach(k => {
-            dispatchGameInput('keyup', k, k);
-          });
+          activeStickDirs.forEach(k => dispatchGameInput('keyup', k, k));
           activeStickDirs.clear();
           dispatchGameAxis(0, 0);
           dispatchGameAxis(1, 0);
-          if (stickKnob) stickKnob.style.transform = 'translate(-50%, -50%)';
-          if (stickBase) stickBase.classList.remove('active');
+          // Reset knob to center
+          if (stickKnob) {
+            stickKnob.style.transition = ''; // re-enable spring-back
+            stickKnob.style.transform = 'translate(-50%, -50%)';
+          }
+          // Reset floating base back to CSS default position
+          if (stickBase) {
+            stickBase.classList.remove('active');
+            stickBase.style.left = '';
+            stickBase.style.top  = '';
+          }
           stickActive = false;
           stickPointerId = null;
         }
 
         if (stickZone && stickBase && stickKnob) {
-          const maxR = 48; // max pixel radius for stick throw
+          const maxR = 52; // pixel radius for max throw
 
           stickZone.addEventListener('pointerdown', e => {
             e.preventDefault();
-            try { stickZone.setPointerCapture(e.pointerId); } catch (ce) {}
+            if (stickActive) return; // single-pointer only
+            try { stickZone.setPointerCapture(e.pointerId); } catch (_) {}
             stickActive = true;
             stickPointerId = e.pointerId;
-            const r = stickBase.getBoundingClientRect();
-            stickOrigin = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+
+            // Float: position the base at where the finger touched
+            const zr = stickZone.getBoundingClientRect();
+            const lx = e.clientX - zr.left;
+            const ly = e.clientY - zr.top;
+
+            // Keep base fully inside the zone
+            const bHalf = stickBase.offsetWidth / 2 || 44;
+            const clampedX = Math.max(bHalf, Math.min(zr.width  - bHalf, lx));
+            const clampedY = Math.max(bHalf, Math.min(zr.height - bHalf, ly));
+
+            stickBase.style.left = clampedX + 'px';
+            stickBase.style.top  = clampedY + 'px';
+            stickOrigin = { x: zr.left + clampedX, y: zr.top + clampedY };
+
             stickBase.classList.add('active');
-            if (navigator.vibrate) { try { navigator.vibrate(8); } catch (ve) {} }
+            stickKnob.style.transition = 'none'; // instant during drag
+
+            if (navigator.vibrate) { try { navigator.vibrate(6); } catch (_) {} }
           });
 
           stickZone.addEventListener('pointermove', e => {
             if (!stickActive || e.pointerId !== stickPointerId) return;
             e.preventDefault();
+
             const dx = e.clientX - stickOrigin.x;
             const dy = e.clientY - stickOrigin.y;
             const dist = Math.hypot(dx, dy);
@@ -1533,23 +1569,25 @@
             const kx = Math.cos(theta) * clamped;
             const ky = Math.sin(theta) * clamped;
 
-            stickKnob.style.transform = `translate(calc(-50% + ${Math.round(kx)}px), calc(-50% + ${Math.round(ky)}px))`;
+            stickKnob.style.transform =
+              `translate(calc(-50% + ${kx.toFixed(1)}px), calc(-50% + ${ky.toFixed(1)}px))`;
 
-            const normX = Math.round((kx / maxR) * 100) / 100;
-            const normY = Math.round((ky / maxR) * 100) / 100;
+            // Normalize to [-1, 1] then apply curve for smooth feel
+            const rawX = kx / maxR;
+            const rawY = ky / maxR;
+            const normX = applyCurve(rawX);
+            const normY = applyCurve(rawY);
 
             dispatchGameAxis(0, normX);
             dispatchGameAxis(1, normY);
-            updateStickDirections(normX, normY);
+            updateStickDirections(rawX, rawY); // use raw for digital keys (not curved)
           });
 
           const endStick = e => {
-            if (e.pointerId === stickPointerId) {
-              resetStickInput();
-            }
+            if (e.pointerId === stickPointerId) resetStickInput();
           };
-          stickZone.addEventListener('pointerup', endStick);
-          stickZone.addEventListener('pointercancel', endStick);
+          stickZone.addEventListener('pointerup',           endStick);
+          stickZone.addEventListener('pointercancel',       endStick);
           stickZone.addEventListener('lostpointercapture', endStick);
         }
 
