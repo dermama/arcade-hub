@@ -263,10 +263,10 @@ runTest('game.html sandbox attributes, preconnect, memory cleanup, and v45 links
   assert(gameHtml.includes('width=1360'), 'game.html must always use the 1360px desktop layout viewport');
 });
 
-runTest('v47: computer behavior everywhere — no rotate UI, no orientation lock', () => {
+runTest('v47: computer behavior everywhere — no rotate UI, no global orientation lock', () => {
   assert(!gameHtml.includes('id="btn-rotate"'), 'v47: rotate button must be removed');
   assert(!gameHtml.includes('id="btn-float-rotate"'), 'v47: floating rotate button must be removed');
-  assert(!gameHtml.includes('screen.orientation.lock('), 'v47: device orientation must never be locked');
+  assert.strictEqual((gameHtml.match(/screen\.orientation\.lock\(/g) || []).length, 1, 'only the Cloud path may lock orientation (exactly one lock call)');
   assert(!gameHtml.includes('isMobilePortrait'), 'v47: no mobile-portrait auto-flip logic');
   assert(gameHtml.includes('/styles.css?v=48'), 'game.html styles must be synced to v48');
   assert(indexHtml.includes('/styles.css?v=48'), 'index.html styles must be synced to v48');
@@ -284,6 +284,15 @@ runTest('v48: cache auto-heal — build marker, SW takeover reload, safe purge, 
   assert(gameHtml.includes('keepFast') && indexHtml.includes('keepFast'), 'purge must preserve arcade-games-*/arcade-images-*');
   assert(gameHtml.includes('id="btn-purge"') && gameHtml.includes('data-purge'), 'game.html needs a visible purge button');
   assert(stylesCss.includes('#purge-fab'), 'index floating purge button styles must stay');
+});
+
+runTest('Cloud press: auto-fullscreen + auto-landscape (overrides device rotation lock)', () => {
+  assert(gameHtml.includes('function cloudGoBig'), 'cloudGoBig helper must exist');
+  assert(gameHtml.includes('function cloudLockWide'), 'cloudLockWide helper must exist');
+  assert(gameHtml.includes("screen.orientation.lock('landscape')"), 'cloud must force landscape programmatically');
+  assert(gameHtml.includes('p.then(cloudLockWide)'), 'landscape lock must run right after fullscreen is entered');
+  assert(gameHtml.includes('cloudWizardPress();') && gameHtml.includes('cloudGoBig();'), 'cloud press must open the wizard AND go fullscreen');
+  assert(gameHtml.includes('screen.lockOrientation') && gameHtml.includes('screen.mozLockOrientation'), 'legacy orientation-lock fallbacks must be present');
 });
 
 runTest('styles.css contains content-visibility: auto for smooth mobile card scrolling', () => {

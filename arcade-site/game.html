@@ -1000,6 +1000,36 @@
           }
         }
 
+        /* ══ v49: ضغطة "سحابة" ← ملء الشاشة + قلب أفقي تلقائي (بأمر المستخدم 2026-10-19)
+           يعمل حتى لو كان "التدوير التلقائي" مغلقاً في الهاتف: القفل البرمجي
+           للاتجاه يتجاوز إعداد الجهاز، لكنه يتطلب ملء الشاشة أولاً (Android).
+           يُتجاهل بهدوء حيث لا يُدعم (سطح المكتب / iOS) فتبقى اللعبة تعمل. */
+        function cloudLockWide() {
+          try {
+            if (screen.orientation && screen.orientation.lock) {
+              const p = screen.orientation.lock('landscape');
+              if (p && p.catch) p.catch(() => { });
+            } else if (screen.lockOrientation) {
+              screen.lockOrientation('landscape');
+            } else if (screen.mozLockOrientation) {
+              screen.mozLockOrientation('landscape');
+            }
+          } catch (e) { }
+        }
+        function cloudGoBig() {
+          const wrap = $('player-wrap');
+          if (!wrap) return;
+          const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+          if (fsEl) { cloudLockWide(); return; }
+          const req = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+          if (!req) return;
+          try {
+            const p = req.call(wrap);
+            if (p && p.then) { p.then(cloudLockWide).catch(() => { }); }
+            else { setTimeout(cloudLockWide, 120); }
+          } catch (e) { }
+        }
+
         window.addEventListener('resize', () => {
           const wrap = $('player-wrap');
           if (wrap && window.innerWidth > window.innerHeight && wrap.classList.contains('is-landscape-surface')) {
@@ -1083,6 +1113,7 @@
               showToast('Switched back to local play.');
             } else {
               cloudWizardPress();
+              cloudGoBig();
             }
           });
         }
