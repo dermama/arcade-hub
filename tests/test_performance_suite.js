@@ -297,6 +297,18 @@ runTest('Cloud press: auto-fullscreen + auto-landscape + screen-aspect fit', () 
   assert(!gameHtml.includes('RELAY_DESKTOP_H'), 'fixed 720px desktop height must be gone');
 });
 
+runTest('v51: cloud session copies OUR app-style fullscreen self-link', () => {
+  assert(gameHtml.includes('function getCloudSelfUrl'), 'getCloudSelfUrl helper must exist');
+  assert(gameHtml.includes("location.origin + '/game.html?g='"), 'self link must point at our own game page');
+  assert(gameHtml.includes("'&fs=1'"), 'self link must carry the fs=1 fullscreen flag');
+  assert(gameHtml.includes("params.get('fs') === '1'"), 'fs=1 must be parsed from the URL');
+  assert(gameHtml.includes('navigator.clipboard.writeText(selfUrl)'), 'cloud press must auto-copy the self link');
+  assert(gameHtml.includes('const url = getCloudSelfUrl();'), 'the copy button must copy the self link too');
+  assert(gameHtml.includes('if (AUTOFS)') && gameHtml.includes('applyFsShell();'), 'the chrome-free fullscreen shell must auto-apply on fs=1');
+  assert(gameHtml.includes("'pointerdown'") && gameHtml.includes("'touchstart'"), 'real fullscreen + landscape must fire on the first touch');
+  assert.strictEqual((gameHtml.match(/screen\.orientation\.lock\(/g) || []).length, 1, 'still only the single cloud lock call');
+});
+
 runTest('styles.css contains content-visibility: auto for smooth mobile card scrolling', () => {
   assert(stylesCss.includes('content-visibility: auto;'), 'content-visibility must be set on .card');
   assert(stylesCss.includes('contain-intrinsic-size: 0 270px;'), 'contain-intrinsic-size must be specified accurately');

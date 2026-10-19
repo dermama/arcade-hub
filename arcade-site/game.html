@@ -80,7 +80,11 @@
        rotate buttons, no orientation locking, no auto-flip; SW bumped to v47
        to purge stale v45 caches that broke display on returning devices.
        v48: Cache auto-heal — build-marker purge + SW takeover reload; game
-       fast-caches (arcade-games-*/arcade-images-*) survive every update. -->
+       fast-caches (arcade-games-*/arcade-images-*) survive every update.
+       v49–v51: Cloud press auto fullscreen + landscape; player viewport now
+       matches the screen aspect; the copied cloud link is OUR own game page
+       in app-style fullscreen (game.html?g=...&fs=1) — chrome-free, and real
+       fullscreen + landscape fire automatically on the first touch. -->
   <meta name="viewport" content="width=1360, viewport-fit=cover">
   <meta name="theme-color" content="#0c0c0d">
   <title id="page-title">Play — Arcade Games</title>
@@ -229,7 +233,7 @@
               </svg>
               <span id="cloud-focus-label">شاشة كاملة</span>
             </button>
-            <button class="btn btn-sm" id="btn-cloud-copy" type="button" title="نسخ رابط اللعبة مجدداً">
+            <button class="btn btn-sm" id="btn-cloud-copy" type="button" title="نسخ رابط اللعبة بنسخة ملء الشاشة">
               <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor">
                 <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
               </svg>
@@ -400,6 +404,7 @@
       const gParam = params.get('g') || params.get('id') || params.get('slug') || '';
       const [gKey, ...pathParts] = gParam.split('::');
       const gPath = pathParts.join('::');
+      const AUTOFS = params.get('fs') === '1';   /* v51: رابط ملء الشاشة الذاتي */
 
       /* ── clean any legacy resolution cutting flags ── */
       try {
@@ -604,6 +609,13 @@
           }
           const local = gameUrl(game);
           return local.startsWith('http') ? local : (window.location.origin + local);
+        }
+
+        /* v51 (طلب المستخدم): الرابط المنسوخ من جلسة السحابة = رابط موقعنا
+           نحن لنفس اللعبة بوضع ملء الشاشة (?fs=1)، فيفتح كأنه تطبيق. */
+        function getCloudSelfUrl() {
+          const g = encodeURIComponent(game.key + '::' + game.path);
+          return location.origin + '/game.html?g=' + g + '&fs=1';
         }
 
         function cloudSetActive(on) {
@@ -1081,7 +1093,7 @@
         const btnCloudCopy = $('btn-cloud-copy');
         if (btnCloudCopy) {
           btnCloudCopy.addEventListener('click', () => {
-            const url = getAbsoluteGameUrl();
+            const url = getCloudSelfUrl();
             if (navigator.clipboard && navigator.clipboard.writeText) {
               navigator.clipboard.writeText(url).then(() => {
                 const lbl = $('cloud-copy-label');
@@ -1089,7 +1101,7 @@
                   lbl.textContent = 'تم النسخ! ✓';
                   setTimeout(() => { lbl.textContent = 'نسخ الرابط'; }, 2000);
                 }
-                showToast('تم نسخ رابط اللعبة إلى الحافظة.');
+                showToast('تم نسخ رابط اللعبة (ملء الشاشة) إلى الحافظة.');
               });
             }
           });
@@ -1127,8 +1139,67 @@
             } else {
               cloudWizardPress();
               cloudGoBig();
+              /* v51: نسخ رابط موقعنا (بنسخة ملء الشاشة) تلقائياً عند بدء الجلسة */
+              try {
+                const selfUrl = getCloudSelfUrl();
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                  navigator.clipboard.writeText(selfUrl).catch(() => { });
+                }
+                const st = $('cloud-hud-status');
+                if (st) st.textContent = 'نُسخ رابط ملء الشاشة — الصقه في المتصفح';
+                showToast('نُسخ رابط ملء الشاشة من موقعنا — الصقه في حقل المتصفح السحابي.');
+              } catch (e) { }
             }
           });
+        }
+
+        /* ══ v51: رابط ملء الشاشة الذاتي (?fs=1) ══
+           فتح رابط موقعنا بهذه النسخة يعرض اللعبة وحدها كأنها تطبيق: تُخفى
+           كل الواجهة ويُثبَّت الملاعب على كامل الشاشة فوراً (بلا انتظار لمسة)،
+           ثم يُفعَّل ملء الشاشة الحقيقي + القفل الأفقي عند أول لمسة/نقرة
+           (المتصفحات تمنع الملء الكامل التلقائي بلا تفاعل). */
+        if (AUTOFS) {
+          const applyFsShell = () => {
+            const wrap = $('player-wrap');
+            if (!wrap) return;
+            let el = wrap;
+            while (el && el.parentElement && el !== document.body) {
+              const parent = el.parentElement;
+              Array.from(parent.children).forEach(sib => {
+                if (sib === el) return;
+                if (sib.id === 'toast') return;   /* التنبيهات تبقى ظاهرة */
+                sib.style.display = 'none';
+              });
+              el = parent;
+            }
+            ['.play-notes', '#orientation-hint', '#btn-float-exit'].forEach(sel => {
+              const n = document.querySelector(sel);
+              if (n) n.style.display = 'none';
+            });
+            wrap.style.position = 'fixed';
+            wrap.style.inset = '0';
+            wrap.style.width = '100vw';
+            wrap.style.height = '100vh';
+            wrap.style.maxWidth = 'none';
+            wrap.style.margin = '0';
+            wrap.style.borderRadius = '0';
+            wrap.style.zIndex = '4000';
+            document.body.style.overflow = 'hidden';
+            document.body.style.background = '#000';
+            try { fitRelayDesktop(); setTimeout(fitRelayDesktop, 300); } catch (e) { }
+          };
+          applyFsShell();
+          window.addEventListener('load', applyFsShell);
+          window.addEventListener('resize', applyFsShell);
+
+          const fsOnce = () => { try { cloudGoBig(); } catch (e) { } };
+          ['pointerdown', 'touchstart', 'keydown'].forEach(ev =>
+            document.addEventListener(ev, function once() {
+              document.removeEventListener(ev, once);
+              fsOnce();
+            }, { passive: true })
+          );
+          setTimeout(fsOnce, 800);
         }
 
         /* ── theater / expand mode ── */
