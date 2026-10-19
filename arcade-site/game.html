@@ -340,24 +340,46 @@
 
         <!-- VIRTUAL TOUCH GAMEPAD (Inspired by DroidDeck Wayland Touch Passthrough) -->
         <div class="virtual-gamepad" id="virtual-gamepad" hidden>
-          <div class="vg-dpad">
-            <button class="vg-btn vg-up" type="button" data-key="ArrowUp" data-code="ArrowUp" aria-label="Up">▲</button>
-            <div class="vg-mid-row">
-              <button class="vg-btn vg-left" type="button" data-key="ArrowLeft" data-code="ArrowLeft"
-                aria-label="Left">◀</button>
-              <div class="vg-center"></div>
-              <button class="vg-btn vg-right" type="button" data-key="ArrowRight" data-code="ArrowRight"
-                aria-label="Right">▶</button>
+          <!-- Top Shoulder Triggers (L1 Aim / R1 Fire) -->
+          <div class="vg-shoulders">
+            <button class="vg-btn vg-shoulder" id="vg-l1" type="button" data-key="ShiftLeft" data-code="ShiftLeft" data-mouse="right" aria-label="L1 Aim">L1 AIM</button>
+            <div class="vg-tools">
+              <button class="vg-tool-btn" id="vg-stick-toggle" type="button" title="Toggle Analog Stick / D-Pad">🕹️</button>
+              <button class="vg-tool-btn" id="vg-ghost-toggle" type="button" title="Toggle Ghost Mode (Transparency)">👁️</button>
             </div>
-            <button class="vg-btn vg-down" type="button" data-key="ArrowDown" data-code="ArrowDown"
-              aria-label="Down">▼</button>
+            <button class="vg-btn vg-shoulder vg-pri" id="vg-r1" type="button" data-key="Space" data-code="Space" data-mouse="left" aria-label="R1 Fire">R1 FIRE</button>
           </div>
+
+          <!-- Left Directional Controls (Analog Thumbstick + Classic D-Pad) -->
+          <div class="vg-left-cluster">
+            <div class="vg-stick-zone" id="vg-stick-zone">
+              <div class="vg-stick-base" id="vg-stick-base">
+                <div class="vg-stick-knob" id="vg-stick-knob"></div>
+              </div>
+            </div>
+            <div class="vg-dpad" id="vg-dpad" style="display:none">
+              <button class="vg-btn vg-up" type="button" data-key="ArrowUp" data-code="ArrowUp" aria-label="Up">▲</button>
+              <div class="vg-mid-row">
+                <button class="vg-btn vg-left" type="button" data-key="ArrowLeft" data-code="ArrowLeft"
+                  aria-label="Left">◀</button>
+                <div class="vg-center"></div>
+                <button class="vg-btn vg-right" type="button" data-key="ArrowRight" data-code="ArrowRight"
+                  aria-label="Right">▶</button>
+              </div>
+              <button class="vg-btn vg-down" type="button" data-key="ArrowDown" data-code="ArrowDown"
+                aria-label="Down">▼</button>
+            </div>
+          </div>
+
+          <!-- System buttons (Start / Select) -->
           <div class="vg-system">
             <button class="vg-btn vg-pill" type="button" data-key="ShiftRight" data-code="ShiftRight"
               aria-label="Select">SELECT</button>
             <button class="vg-btn vg-pill" type="button" data-key="Enter" data-code="Enter"
               aria-label="Start">START</button>
           </div>
+
+          <!-- Right Action Cluster (A, B, X, Y) -->
           <div class="vg-actions">
             <div class="vg-act-row">
               <button class="vg-btn vg-action" type="button" data-key="KeyE" data-code="KeyE" aria-label="X">X</button>
@@ -369,6 +391,11 @@
               <button class="vg-btn vg-action" type="button" data-key="ShiftLeft" data-code="ShiftLeft"
                 aria-label="B">B</button>
             </div>
+          </div>
+
+          <!-- Swipe-To-Look Zone (Transparent surface for smooth camera aiming in 3D/FPS games) -->
+          <div class="vg-look-surface" id="vg-look-surface">
+            <span class="vg-look-hint" id="vg-look-hint">Swipe to Look ↺</span>
           </div>
         </div>
       </div>
@@ -1327,19 +1354,36 @@
           if (heldButtons.has(b)) return;
           heldButtons.add(b);
           b.classList.add('active');
-          if (navigator.vibrate) { try { navigator.vibrate(14); } catch (ve) { } }
+          if (navigator.vibrate) { try { navigator.vibrate(12); } catch (ve) { } }
+
+          /* 1. Dispatch keyboard event */
           dispatchGameInput('keydown', b.dataset.key, b.dataset.code);
+
+          /* 2. Dispatch mouse event if button has data-mouse attribute (Shoot / Aim) */
+          if (b.dataset.mouse) {
+            const btnNum = b.dataset.mouse === 'right' ? 2 : 0;
+            dispatchGameMouse('mousedown', btnNum);
+          }
         }
         function releaseButton(b) {
           if (!heldButtons.has(b)) return;
           heldButtons.delete(b);
           b.classList.remove('active');
+
+          /* 1. Dispatch keyup */
           dispatchGameInput('keyup', b.dataset.key, b.dataset.code);
+
+          /* 2. Dispatch mouseup if button has data-mouse */
+          if (b.dataset.mouse) {
+            const btnNum = b.dataset.mouse === 'right' ? 2 : 0;
+            dispatchGameMouse('mouseup', btnNum);
+          }
         }
         /* Always lift every key — e.g. when the app loses focus mid-press. */
         function releaseAllButtons() {
           heldByPointer.clear();
           Array.from(heldButtons).forEach(releaseButton);
+          resetStickInput();
         }
 
         function setGamepad(show) {
@@ -1384,6 +1428,206 @@
               frame.contentWindow.postMessage(payload, '*');
             }
           } catch (e) { }
+        }
+
+        function dispatchGameMouse(evName, btn, mx, my, cx, cy) {
+          const frame = $('player-frame');
+          const payload = {
+            type: 'arcade:mouse',
+            event: evName,
+            button: btn != null ? btn : 0,
+            movementX: mx || 0,
+            movementY: my || 0,
+            clientX: cx || 0,
+            clientY: cy || 0
+          };
+          try {
+            if (frame && frame.contentWindow) {
+              frame.contentWindow.postMessage(payload, '*');
+            }
+          } catch (e) { }
+        }
+
+        function dispatchGameAxis(axisNum, val) {
+          const frame = $('player-frame');
+          const payload = {
+            type: 'arcade:axis',
+            axis: axisNum,
+            value: val
+          };
+          try {
+            if (frame && frame.contentWindow) {
+              frame.contentWindow.postMessage(payload, '*');
+            }
+          } catch (e) { }
+        }
+
+        /* ── 360° Analog Joystick Engine ── */
+        const stickZone = $('vg-stick-zone');
+        const stickBase = $('vg-stick-base');
+        const stickKnob = $('vg-stick-knob');
+        let stickActive = false, stickPointerId = null, stickOrigin = { x: 0, y: 0 };
+        const activeStickDirs = new Set();
+
+        function updateStickDirections(nx, ny) {
+          const deadzone = 0.30;
+          const wanted = new Set();
+
+          if (ny < -deadzone) { wanted.add('ArrowUp'); wanted.add('KeyW'); }
+          if (ny > deadzone) { wanted.add('ArrowDown'); wanted.add('KeyS'); }
+          if (nx < -deadzone) { wanted.add('ArrowLeft'); wanted.add('KeyA'); }
+          if (nx > deadzone) { wanted.add('ArrowRight'); wanted.add('KeyD'); }
+
+          /* Release no-longer-wanted keys */
+          activeStickDirs.forEach(k => {
+            if (!wanted.has(k)) {
+              activeStickDirs.delete(k);
+              dispatchGameInput('keyup', k, k);
+            }
+          });
+
+          /* Press newly-wanted keys */
+          wanted.forEach(k => {
+            if (!activeStickDirs.has(k)) {
+              activeStickDirs.add(k);
+              dispatchGameInput('keydown', k, k);
+            }
+          });
+        }
+
+        function resetStickInput() {
+          activeStickDirs.forEach(k => {
+            dispatchGameInput('keyup', k, k);
+          });
+          activeStickDirs.clear();
+          dispatchGameAxis(0, 0);
+          dispatchGameAxis(1, 0);
+          if (stickKnob) stickKnob.style.transform = 'translate(-50%, -50%)';
+          if (stickBase) stickBase.classList.remove('active');
+          stickActive = false;
+          stickPointerId = null;
+        }
+
+        if (stickZone && stickBase && stickKnob) {
+          const maxR = 48; // max pixel radius for stick throw
+
+          stickZone.addEventListener('pointerdown', e => {
+            e.preventDefault();
+            try { stickZone.setPointerCapture(e.pointerId); } catch (ce) {}
+            stickActive = true;
+            stickPointerId = e.pointerId;
+            const r = stickBase.getBoundingClientRect();
+            stickOrigin = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+            stickBase.classList.add('active');
+            if (navigator.vibrate) { try { navigator.vibrate(8); } catch (ve) {} }
+          });
+
+          stickZone.addEventListener('pointermove', e => {
+            if (!stickActive || e.pointerId !== stickPointerId) return;
+            e.preventDefault();
+            const dx = e.clientX - stickOrigin.x;
+            const dy = e.clientY - stickOrigin.y;
+            const dist = Math.hypot(dx, dy);
+            const clamped = Math.min(dist, maxR);
+            const theta = Math.atan2(dy, dx);
+            const kx = Math.cos(theta) * clamped;
+            const ky = Math.sin(theta) * clamped;
+
+            stickKnob.style.transform = `translate(calc(-50% + ${Math.round(kx)}px), calc(-50% + ${Math.round(ky)}px))`;
+
+            const normX = Math.round((kx / maxR) * 100) / 100;
+            const normY = Math.round((ky / maxR) * 100) / 100;
+
+            dispatchGameAxis(0, normX);
+            dispatchGameAxis(1, normY);
+            updateStickDirections(normX, normY);
+          });
+
+          const endStick = e => {
+            if (e.pointerId === stickPointerId) {
+              resetStickInput();
+            }
+          };
+          stickZone.addEventListener('pointerup', endStick);
+          stickZone.addEventListener('pointercancel', endStick);
+          stickZone.addEventListener('lostpointercapture', endStick);
+        }
+
+        /* ── Swipe-To-Look Engine for 3D Camera & FPS Aiming ── */
+        const lookZone = $('vg-look-surface');
+        let lookActive = false, lookPointerId = null, lastLook = { x: 0, y: 0 };
+        const lookHint = $('vg-look-hint');
+
+        if (lookZone) {
+          lookZone.addEventListener('pointerdown', e => {
+            // Only capture if not pressing a floating action button
+            if (e.target.closest('.vg-btn, .vg-tools')) return;
+            e.preventDefault();
+            try { lookZone.setPointerCapture(e.pointerId); } catch (ce) {}
+            lookActive = true;
+            lookPointerId = e.pointerId;
+            lastLook = { x: e.clientX, y: e.clientY };
+            if (lookHint) lookHint.style.opacity = '0';
+          });
+
+          lookZone.addEventListener('pointermove', e => {
+            if (!lookActive || e.pointerId !== lookPointerId) return;
+            e.preventDefault();
+            const dx = e.clientX - lastLook.x;
+            const dy = e.clientY - lastLook.y;
+            lastLook = { x: e.clientX, y: e.clientY };
+
+            if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
+              const sens = 1.6;
+              dispatchGameMouse('mousemove', 0, dx * sens, dy * sens, e.clientX, e.clientY);
+              dispatchGameAxis(2, Math.max(-1, Math.min(1, dx * 0.14)));
+              dispatchGameAxis(3, Math.max(-1, Math.min(1, dy * 0.14)));
+            }
+          });
+
+          const endLook = e => {
+            if (e.pointerId === lookPointerId) {
+              lookActive = false;
+              lookPointerId = null;
+              dispatchGameAxis(2, 0);
+              dispatchGameAxis(3, 0);
+            }
+          };
+          lookZone.addEventListener('pointerup', endLook);
+          lookZone.addEventListener('pointercancel', endLook);
+          lookZone.addEventListener('lostpointercapture', endLook);
+        }
+
+        /* ── Quick Tools: Stick/Dpad Toggle & Ghost Transparency ── */
+        const btnStickToggle = $('vg-stick-toggle');
+        const dpadEl = $('vg-dpad');
+        if (btnStickToggle && stickZone && dpadEl) {
+          let useStick = true;
+          try { useStick = localStorage.getItem('arcade.pad_stick') !== '0'; } catch(e) {}
+          function applyStickMode() {
+            stickZone.style.display = useStick ? 'flex' : 'none';
+            dpadEl.style.display = useStick ? 'none' : 'flex';
+            btnStickToggle.textContent = useStick ? '🕹️' : '🔲';
+            try { localStorage.setItem('arcade.pad_stick', useStick ? '1' : '0'); } catch(e) {}
+          }
+          applyStickMode();
+          btnStickToggle.addEventListener('click', () => {
+            useStick = !useStick;
+            resetStickInput();
+            applyStickMode();
+          });
+        }
+
+        const btnGhostToggle = $('vg-ghost-toggle');
+        if (btnGhostToggle && vg) {
+          let isGhost = false;
+          try { isGhost = localStorage.getItem('arcade.pad_ghost') === '1'; } catch(e) {}
+          if (isGhost) vg.classList.add('is-ghost');
+          btnGhostToggle.addEventListener('click', () => {
+            isGhost = !isGhost;
+            vg.classList.toggle('is-ghost', isGhost);
+            try { localStorage.setItem('arcade.pad_ghost', isGhost ? '1' : '0'); } catch(e) {}
+          });
         }
 
         /* Each pointer owns one button (multi-touch dpad + action never collide) and

@@ -377,7 +377,38 @@
           "KeyW": 87, "KeyA": 65, "KeyS": 83, "KeyD": 68
         };
         window.addEventListener("message", function (ev) {
-          if (!ev || !ev.data || ev.data.type !== "arcade:input") return;
+          if (!ev || !ev.data) return;
+          if (ev.data.type === "arcade:mouse") {
+            try {
+              var mType = ev.data.event || "mousemove";
+              var target = document.querySelector("canvas") || document.activeElement || window;
+              var btn = ev.data.button != null ? ev.data.button : 0;
+              var mEvent;
+              try {
+                mEvent = new MouseEvent(mType, {
+                  bubbles: true,
+                  cancelable: true,
+                  view: window,
+                  button: btn,
+                  buttons: ev.data.buttons != null ? ev.data.buttons : (mType === "mousedown" ? 1 : 0),
+                  clientX: ev.data.clientX || (window.innerWidth / 2),
+                  clientY: ev.data.clientY || (window.innerHeight / 2),
+                  movementX: ev.data.movementX || 0,
+                  movementY: ev.data.movementY || 0
+                });
+              } catch (me) {
+                mEvent = document.createEvent("MouseEvents");
+                mEvent.initMouseEvent(mType, true, true, window, 1, 0, 0, ev.data.clientX || 0, ev.data.clientY || 0, false, false, false, false, btn, null);
+              }
+              try { Object.defineProperty(mEvent, "movementX", { get: function () { return ev.data.movementX || 0; } }); } catch (pe1) {}
+              try { Object.defineProperty(mEvent, "movementY", { get: function () { return ev.data.movementY || 0; } }); } catch (pe2) {}
+              target.dispatchEvent(mEvent);
+              document.dispatchEvent(mEvent);
+              window.dispatchEvent(mEvent);
+            } catch (errM) {}
+            return;
+          }
+          if (ev.data.type !== "arcade:input") return;
           var type = ev.data.event === "keyup" ? "keyup" : "keydown";
           var code = ev.data.code || "Space";
           var key = ev.data.key || " ";
@@ -474,9 +505,18 @@
         }
 
         window.addEventListener("message", function (ev) {
-          if (!ev || !ev.data || ev.data.type !== "arcade:input") return;
-          var isPressed = ev.data.event === "keydown";
-          updateGamepad(ev.data.code, isPressed);
+          if (!ev || !ev.data) return;
+          if (ev.data.type === "arcade:input") {
+            var isPressed = ev.data.event === "keydown";
+            updateGamepad(ev.data.code, isPressed);
+          } else if (ev.data.type === "arcade:axis") {
+            var ax = Number(ev.data.axis) || 0;
+            var val = Math.max(-1, Math.min(1, Number(ev.data.value) || 0));
+            if (virtualGamepad.axes && ax >= 0 && ax < 4) {
+              virtualGamepad.axes[ax] = val;
+              virtualGamepad.timestamp = performance.now();
+            }
+          }
         });
 
         window.ARCADE.virtualGamepad = virtualGamepad;
