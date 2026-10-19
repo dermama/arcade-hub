@@ -286,13 +286,15 @@ runTest('v48: cache auto-heal — build marker, SW takeover reload, safe purge, 
   assert(stylesCss.includes('#purge-fab'), 'index floating purge button styles must stay');
 });
 
-runTest('Cloud press: auto-fullscreen + auto-landscape (overrides device rotation lock)', () => {
+runTest('Cloud press: auto-fullscreen + auto-landscape + screen-aspect fit', () => {
   assert(gameHtml.includes('function cloudGoBig'), 'cloudGoBig helper must exist');
   assert(gameHtml.includes('function cloudLockWide'), 'cloudLockWide helper must exist');
   assert(gameHtml.includes("screen.orientation.lock('landscape')"), 'cloud must force landscape programmatically');
-  assert(gameHtml.includes('p.then(cloudLockWide)'), 'landscape lock must run right after fullscreen is entered');
+  assert(gameHtml.includes('p.then(after)'), 'landscape lock + refit must run right after fullscreen is entered');
   assert(gameHtml.includes('cloudWizardPress();') && gameHtml.includes('cloudGoBig();'), 'cloud press must open the wizard AND go fullscreen');
   assert(gameHtml.includes('screen.lockOrientation') && gameHtml.includes('screen.mozLockOrientation'), 'legacy orientation-lock fallbacks must be present');
+  assert(gameHtml.includes('RELAY_DESKTOP_W * r.height / r.width'), 'cloud desktop viewport must match the real screen aspect ratio');
+  assert(!gameHtml.includes('RELAY_DESKTOP_H'), 'fixed 720px desktop height must be gone');
 });
 
 runTest('styles.css contains content-visibility: auto for smooth mobile card scrolling', () => {

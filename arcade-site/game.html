@@ -941,19 +941,24 @@
            ضغطة أخرى ← رجوع للعبة. الجلسة تبقى محمّلة (لا إعادة تحميل). */
         const relayFrame = $('relay-frame');
         const RELAY_DESKTOP_W = 1280;
-        const RELAY_DESKTOP_H = 720;
 
+        /* ══ v50: المنفذ الافتراضي يطابق نسبة شاشة الجهاز الحقيقية ══════════
+           بدل تثبيت 1280×720 (16:9) — الذي يترك أشرطة جانبية على هواتف
+           20:9 — نحسب ارتفاع المنفذ من نسبة الإطار الفعلي: تملأ شاشة الجهاز
+           كاملةً بعد ملء الشاشة والتدوير، بلا أي تشويه (العرض يبقى 1280
+           كسطح مكتب، والارتفاع يتبع نسبة الشاشة). */
         function fitRelayDesktop() {
           const wrap = $('relay-frame-wrap');
           if (!wrap || !relayFrame) return;
           const r = wrap.getBoundingClientRect();
           if (!r.width || !r.height) return;
-          const s = Math.min(r.width / RELAY_DESKTOP_W, r.height / RELAY_DESKTOP_H);
+          const vh = Math.max(320, Math.round(RELAY_DESKTOP_W * r.height / r.width));
+          const s = Math.min(r.width / RELAY_DESKTOP_W, r.height / vh);
           relayFrame.style.width = RELAY_DESKTOP_W + 'px';
-          relayFrame.style.height = RELAY_DESKTOP_H + 'px';
+          relayFrame.style.height = vh + 'px';
           relayFrame.style.transform = 'scale(' + s + ')';
           const leftOffset = Math.max(0, (r.width - RELAY_DESKTOP_W * s) / 2);
-          const topOffset = Math.max(0, (r.height - RELAY_DESKTOP_H * s) / 2);
+          const topOffset = Math.max(0, (r.height - vh * s) / 2);
           relayFrame.style.left = Math.round(leftOffset) + 'px';
           relayFrame.style.top = Math.round(topOffset) + 'px';
         }
@@ -1020,13 +1025,21 @@
           const wrap = $('player-wrap');
           if (!wrap) return;
           const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-          if (fsEl) { cloudLockWide(); return; }
+          if (fsEl) { cloudLockWide(); fitRelayDesktop(); setTimeout(fitRelayDesktop, 200); return; }
           const req = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
           if (!req) return;
           try {
+            /* بعد الدخول: قفل أفقي + إعادة قياس فورية ومتأخرة (أبعاد الشاشة
+               تكتمل بعد التدوير بجزء من الثانية). */
+            const after = () => {
+              cloudLockWide();
+              fitRelayDesktop();
+              setTimeout(fitRelayDesktop, 150);
+              setTimeout(fitRelayDesktop, 500);
+            };
             const p = req.call(wrap);
-            if (p && p.then) { p.then(cloudLockWide).catch(() => { }); }
-            else { setTimeout(cloudLockWide, 120); }
+            if (p && p.then) { p.then(after).catch(() => { after(); }); }
+            else { setTimeout(after, 120); }
           } catch (e) { }
         }
 
