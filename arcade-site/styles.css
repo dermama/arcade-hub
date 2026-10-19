@@ -425,7 +425,15 @@ body.player-is-landscape-surface {
 /* ---- VIRTUAL TOUCH GAMEPAD (Inspired by DroidDeck / SteamOS Touch Passthrough) ---- */
 .virtual-gamepad {
   position: absolute;
-  inset: 0;
+  inset: auto 0 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(20px + env(safe-area-inset-left, 0px));
+  padding-right: calc(20px + env(safe-area-inset-right, 0px));
   pointer-events: none;
   z-index: 45;
   user-select: none;
@@ -435,15 +443,11 @@ body.player-is-landscape-surface {
 }
 .virtual-gamepad[hidden] { display: none !important; }
 .vg-dpad {
-  position: absolute;
-  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-  left: calc(20px + env(safe-area-inset-left, 0px));
   display: flex;
   flex-direction: column;
   align-items: center;
   pointer-events: auto;
   gap: 6px;
-  z-index: 48;
 }
 .vg-mid-row {
   display: flex;
@@ -456,14 +460,10 @@ body.player-is-landscape-surface {
   background: rgba(255, 255, 255, 0.04);
 }
 .vg-actions {
-  position: absolute;
-  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-  right: calc(20px + env(safe-area-inset-right, 0px));
   display: flex;
   flex-direction: column;
   gap: 8px;
   pointer-events: auto;
-  z-index: 48;
 }
 .vg-act-row {
   display: flex;
@@ -503,15 +503,12 @@ body.player-is-landscape-surface {
 }
 /* System row (Start / Select) — centered between dpad and actions */
 .vg-system {
-  position: absolute;
-  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   align-items: center;
+  justify-content: flex-end;
   pointer-events: auto;
-  z-index: 48;
 }
 .vg-pill {
   width: auto;
@@ -524,57 +521,36 @@ body.player-is-landscape-surface {
   place-items: center;
 }
 
-/* ── Dynamic Analog Thumbstick Surface (Left 50% Touch Region) ── */
+/* ── Analog Thumbstick Zone (nipplejs dynamic) ── */
 .vg-stick-zone {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 50%;
-  height: 100%;
+  width: 160px;
+  height: 160px;
+  position: relative;
   pointer-events: auto;
   touch-action: none;
-  z-index: 42;
+  border-radius: 20px;
+  /* Subtle guide so user knows where to touch */
+  background: rgba(255,255,255,0.03);
+  border: 1px dashed rgba(255,255,255,0.10);
 }
 
-/* Resting position: bottom-left default anchor, springs to wherever thumb touches */
-.vg-stick-base {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(167, 139, 250, 0.06) 0%, rgba(18, 20, 32, 0.82) 70%);
-  border: 2px solid rgba(167, 139, 250, 0.45);
-  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 22px rgba(124, 92, 255, 0.22);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  position: absolute;
-  left: calc(75px + env(safe-area-inset-left, 0px));
-  top: calc(100% - 75px - env(safe-area-inset-bottom, 0px));
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  opacity: 0.35;
-  transition: opacity 0.2s ease-out, border-color 0.2s ease-out, box-shadow 0.2s ease-out;
-  will-change: left, top, opacity;
-}
+/* Hide old manual base/knob — nipplejs renders its own */
+.vg-stick-base, .vg-stick-knob { display: none !important; }
 
-.vg-stick-base.active {
-  opacity: 1 !important;
-  border-color: rgba(192, 132, 252, 0.95);
-  box-shadow: inset 0 0 24px rgba(124, 92, 255, 0.4), 0 0 32px rgba(168, 85, 247, 0.55);
+/* ── nipplejs element overrides ── */
+/* Back (outer ring) */
+.vg-stick-zone .back {
+  background: radial-gradient(circle, rgba(255,255,255,0.07) 0%, rgba(14,16,26,0.82) 70%) !important;
+  border: 2px solid rgba(167,139,250,0.55) !important;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 0 18px rgba(124,92,255,0.25) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
 }
-
-.vg-stick-knob {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #c084fc, #7c3aed 70%, #4c1d95);
-  border: 2px solid rgba(255, 255, 255, 0.65);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55), inset 0 2px 4px rgba(255, 255, 255, 0.4);
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  will-change: transform;
+/* Front (knob) */
+.vg-stick-zone .front {
+  background: radial-gradient(circle at 35% 35%, #a07aff, #5028cc) !important;
+  border: 2px solid rgba(255,255,255,0.55) !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.55), inset 0 2px 6px rgba(255,255,255,0.35) !important;
 }
 
 
@@ -632,14 +608,13 @@ body.player-is-landscape-surface {
 /* ── Shoulder Triggers (L1 / R1) ── */
 .vg-shoulders {
   position: absolute;
-  top: calc(14px + env(safe-area-inset-top, 0px));
-  left: calc(16px + env(safe-area-inset-left, 0px));
-  right: calc(16px + env(safe-area-inset-right, 0px));
+  top: 12px;
+  left: 16px;
+  right: 16px;
   display: flex;
   justify-content: space-between;
-  align-items: center;
   pointer-events: none;
-  z-index: 50;
+  z-index: 46;
 }
 .vg-btn.vg-shoulder {
   pointer-events: auto;
