@@ -521,66 +521,39 @@ body.player-is-landscape-surface {
   place-items: center;
 }
 
-/* ── Analog Thumbstick (Floating) ── */
+/* ── Analog Thumbstick Zone (nipplejs dynamic) ── */
 .vg-stick-zone {
   width: 160px;
   height: 160px;
   position: relative;
   pointer-events: auto;
   touch-action: none;
-  /* No flex centering — base floats via JS */
+  border-radius: 20px;
+  /* Subtle guide so user knows where to touch */
+  background: rgba(255,255,255,0.03);
+  border: 1px dashed rgba(255,255,255,0.10);
 }
-.vg-stick-base {
-  width: 110px;
-  height: 110px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,255,255,0.09) 0%, rgba(18,20,29,0.75) 70%);
-  border: 2px solid rgba(255, 255, 255, 0.20);
-  box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.5);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  /* Floating: position set by JS on pointerdown */
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color .12s, box-shadow .12s;
-  pointer-events: none; /* zone handles all pointer events */
+
+/* Hide old manual base/knob — nipplejs renders its own */
+.vg-stick-base, .vg-stick-knob { display: none !important; }
+
+/* ── nipplejs element overrides ── */
+/* Back (outer ring) */
+.vg-stick-zone .back {
+  background: radial-gradient(circle, rgba(255,255,255,0.07) 0%, rgba(14,16,26,0.82) 70%) !important;
+  border: 2px solid rgba(167,139,250,0.55) !important;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 0 18px rgba(124,92,255,0.25) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
 }
-.vg-stick-base.active {
-  border-color: #a78bfa;
-  box-shadow: inset 0 0 24px rgba(124,92,255,0.3), 0 0 16px rgba(167,139,250,0.4);
+/* Front (knob) */
+.vg-stick-zone .front {
+  background: radial-gradient(circle at 35% 35%, #a07aff, #5028cc) !important;
+  border: 2px solid rgba(255,255,255,0.55) !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.55), inset 0 2px 6px rgba(255,255,255,0.35) !important;
 }
-.vg-stick-knob {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #9070ff, #5028cc);
-  border: 2px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 4px 14px rgba(0,0,0,0.6), inset 0 2px 6px rgba(255,255,255,0.4);
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  /* No transition during drag for instant response; slight spring on release */
-  transition: transform .06s cubic-bezier(.25,.46,.45,.94);
-  will-change: transform;
-}
-.vg-stick-knob::after {
-  content: "";
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.3);
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
+
+
 
 /* ── Mode Toggle & Tools (Stick / D-pad / Ghost) ── */
 .vg-tools {
