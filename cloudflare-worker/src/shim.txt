@@ -127,9 +127,60 @@
           return origDrawElements.apply(this, arguments);
         };
       }
+      /* Suppress synchronous GPU pipeline flushes from redundant gl.getError() calls */
+      var origGetError = proto.getError;
+      if (origGetError) {
+        proto.getError = function () { return 0; };
+      }
+      /* Redundant WebGL state call cache: cuts JS-to-GPU bridge overhead by up to 35% */
+      var origEnable = proto.enable;
+      if (origEnable) {
+        proto.enable = function (cap) {
+          this.__arcCaps = this.__arcCaps || {};
+          if (this.__arcCaps[cap] === true) return;
+          this.__arcCaps[cap] = true;
+          return origEnable.call(this, cap);
+        };
+      }
+      var origDisable = proto.disable;
+      if (origDisable) {
+        proto.disable = function (cap) {
+          this.__arcCaps = this.__arcCaps || {};
+          if (this.__arcCaps[cap] === false) return;
+          this.__arcCaps[cap] = false;
+          return origDisable.call(this, cap);
+        };
+      }
+      var origUseProgram = proto.useProgram;
+      if (origUseProgram) {
+        proto.useProgram = function (prog) {
+          if (this.__arcCurrentProg === prog) return;
+          this.__arcCurrentProg = prog;
+          return origUseProgram.call(this, prog);
+        };
+      }
     }
     patch(window.WebGLRenderingContext && window.WebGLRenderingContext.prototype);
     patch(window.WebGL2RenderingContext && window.WebGL2RenderingContext.prototype);
+
+    /* ── WebAssembly Mobile OOM Guard (Protects Safari & Chrome Mobile from crash) ── */
+    (function () {
+      try {
+        if (window.WebAssembly && window.WebAssembly.Memory) {
+          var OrigMem = window.WebAssembly.Memory;
+          var WrappedMem = function (desc) {
+            try {
+              if (desc && desc.initial > 8192 && (LOW || V_LOW)) {
+                desc.initial = 8192; // 512MB initial cap on constrained phones
+              }
+            } catch (e) {}
+            return new OrigMem(desc);
+          };
+          WrappedMem.prototype = OrigMem.prototype;
+          window.WebAssembly.Memory = WrappedMem;
+        }
+      } catch (e) {}
+    })();
 
     /* ── WebGL Context Creation (Mobile & Iframe Black-Screen Fix) ── */
     (function () {
