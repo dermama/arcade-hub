@@ -212,7 +212,7 @@ runTest('Cloudflare Worker has Edge Caching configuration enabled', () => {
 runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
   assert(workerCode.includes('up.ok ? "public, max-age=604800, immutable" : "no-store"'), 'v55: only ok responses get the immutable header — errors must be no-store');
   assert(workerCode.includes('Cache-Control", "no-cache, no-store, must-revalidate"'), 'HTML documents must not be stale-cached');
-  assert(workerCode.includes('__shim.js?v=46'), 'Shim tag version must match latest build v46');
+  assert(workerCode.includes('__shim.js?v=56'), 'Shim tag version must match latest build v56');
 });
 
 // -------------------------------------------------------------------
@@ -221,7 +221,7 @@ runTest('Cloudflare Worker sets proper Cache-Control and Shim version', () => {
 console.log('\n▶ [Axis 7]: Testing Service Worker Offline & Tiered Caching Strategy...');
 
 runTest('Service Worker contains Tiered Cache configuration', () => {
-  assert(swCode.includes("VERSION = 'v55'"), 'Service worker should be synced to v55');
+  assert(swCode.includes("VERSION = 'v56'"), 'Service worker should be synced to v56');
   assert(swCode.includes('SHELL_CACHE'), 'App shell cache should be defined');
   assert(swCode.includes('GAME_CACHE'), 'Runtime game cache should be defined');
   assert(swCode.includes('IMG_CACHE'), 'Image cache should be defined');
@@ -269,14 +269,14 @@ runTest('v47: computer behavior everywhere — no rotate UI, no global orientati
   assert(!gameHtml.includes('id="btn-float-rotate"'), 'v47: floating rotate button must be removed');
   assert.strictEqual((gameHtml.match(/screen\.orientation\.lock\(/g) || []).length, 1, 'only the Cloud path may lock orientation (exactly one lock call)');
   assert(!gameHtml.includes('isMobilePortrait'), 'v47: no mobile-portrait auto-flip logic');
-  assert(gameHtml.includes('/styles.css?v=55'), 'game.html styles must be synced to v55');
-  assert(indexHtml.includes('/styles.css?v=55'), 'index.html styles must be synced to v55');
+  assert(gameHtml.includes('/styles.css?v=56'), 'game.html styles must be synced to v56');
+  assert(indexHtml.includes('/styles.css?v=56'), 'index.html styles must be synced to v56');
 });
 
-runTest('v55: cache auto-heal — build marker, SW takeover reload, safe purge, stable game caches', () => {
-  assert(gameHtml.includes('var B = "v55"'), 'game.html build marker must be v55');
-  assert(indexHtml.includes('var B = "v55"'), 'index.html build marker must be v55');
-  assert(swCode.includes("const VERSION = 'v55'"), 'SW must be v55');
+runTest('v56: cache auto-heal — build marker, SW takeover reload, safe purge, stable game caches', () => {
+  assert(gameHtml.includes('var B = "v56"'), 'game.html build marker must be v56');
+  assert(indexHtml.includes('var B = "v56"'), 'index.html build marker must be v56');
+  assert(swCode.includes("const VERSION = 'v56'"), 'SW must be v56');
   assert(swCode.includes("'arcade-games-static'") && swCode.includes("'arcade-images-static'"), 'game/image caches must be version-stable');
   assert(swCode.includes('migrateLegacyInto'), 'legacy versioned game caches must be migrated, not dropped');
   assert(swCode.includes('self.skipWaiting()') && swCode.includes('self.clients.claim()'), 'SW must activate and take over immediately');

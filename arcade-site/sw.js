@@ -11,7 +11,7 @@
      instant relaunches, so games never re-download on updates.
    - GAME/IMG caches use STABLE names: heavy game files survive every update,
      and legacy versioned game/image caches are migrated, never dropped. */
-const VERSION = 'v55';
+const VERSION = 'v56';
 const SHELL_CACHE = `arcade-shell-${VERSION}`;
 const GAME_CACHE = 'arcade-games-static';
 const IMG_CACHE = 'arcade-images-static';

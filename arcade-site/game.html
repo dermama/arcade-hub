@@ -12,7 +12,7 @@
          heavy game files → full clean re-download, fixes persistent black screens.
        - The SW keeps itself: no unregister (game fast-cache + auto-update intact). */
     (function () {
-      var B = "v55";
+      var B = "v56";
       try { window.ARCADE_BUILD = B.replace(/^v/, ""); } catch (e) { }
       function keepFast(n) { return n.indexOf("arcade-games") === 0 || n.indexOf("arcade-images") === 0; }
       function purgeAll() {
@@ -109,7 +109,9 @@
           });
         } catch (e) { }
         window.addEventListener("load", function () {
-          navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(function () { });
+          navigator.serviceWorker.register("/sw.js", { scope: "/" }).then(function(reg){
+            try { reg.update(); } catch(e){}
+          }).catch(function () { });
         });
       }
 
@@ -150,7 +152,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Archivo:wdth,wght@75..125,400..900&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=55">
+  <link rel="stylesheet" href="/styles.css?v=56">
 </head>
 
 <body>
@@ -1354,12 +1356,17 @@
 
         const heldByPointer = new Map();
         const heldButtons = new Set();
+        const heldCount = new Map();
 
         function pressButton(b) {
-          if (heldButtons.has(b)) return;
+          if (!b) return;
+          const count = (heldCount.get(b) || 0) + 1;
+          heldCount.set(b, count);
           heldButtons.add(b);
+          if (count > 1) return;
+
           b.classList.add('active');
-          if (navigator.vibrate) { try { navigator.vibrate(12); } catch (ve) { } }
+          if (navigator.vibrate) { try { navigator.vibrate(10); } catch (ve) { } }
 
           /* 1. Dispatch keyboard event */
           dispatchGameInput('keydown', b.dataset.key, b.dataset.code);
@@ -1370,9 +1377,20 @@
             dispatchGameMouse('mousedown', btnNum);
           }
         }
-        function releaseButton(b) {
-          if (!heldButtons.has(b)) return;
-          heldButtons.delete(b);
+        function releaseButton(b, force) {
+          if (!b) return;
+          if (force) {
+            heldCount.delete(b);
+            heldButtons.delete(b);
+          } else {
+            const count = (heldCount.get(b) || 0) - 1;
+            if (count > 0) {
+              heldCount.set(b, count);
+              return;
+            }
+            heldCount.delete(b);
+            heldButtons.delete(b);
+          }
           b.classList.remove('active');
 
           /* 1. Dispatch keyup */
@@ -1387,7 +1405,7 @@
         /* Always lift every key — e.g. when the app loses focus mid-press. */
         function releaseAllButtons() {
           heldByPointer.clear();
-          Array.from(heldButtons).forEach(releaseButton);
+          Array.from(heldButtons).forEach(b => releaseButton(b, true));
           if (typeof endStickSession === 'function') endStickSession(false, 0, 0);
           releaseStickDirs();
         }
@@ -1419,51 +1437,66 @@
           KeyW: 87, KeyA: 65, KeyS: 83, KeyD: 68
         };
 
+        /* Zero-GC static message payloads to eliminate Garbage Collector micro-stutters */
+        const STATIC_INPUT_PAYLOAD = {
+          type: 'arcade:input',
+          event: '',
+          key: '',
+          code: '',
+          keyCode: 0
+        };
+
         function dispatchGameInput(evName, key, code) {
           const frame = $('player-frame');
-          /* keyCode 0 is falsy, so an unknown code still falls back inside the shim */
-          const payload = {
-            type: 'arcade:input',
-            event: evName,
-            key: key,
-            code: code,
-            keyCode: VG_KEYCODES[code] || 0
-          };
+          STATIC_INPUT_PAYLOAD.event = evName;
+          STATIC_INPUT_PAYLOAD.key = key || '';
+          STATIC_INPUT_PAYLOAD.code = code || '';
+          STATIC_INPUT_PAYLOAD.keyCode = VG_KEYCODES[code] || 0;
           try {
             if (frame && frame.contentWindow) {
-              frame.contentWindow.postMessage(payload, '*');
+              frame.contentWindow.postMessage(STATIC_INPUT_PAYLOAD, '*');
             }
           } catch (e) { }
         }
+
+        const STATIC_MOUSE_PAYLOAD = {
+          type: 'arcade:mouse',
+          event: '',
+          button: 0,
+          movementX: 0,
+          movementY: 0,
+          clientX: 0,
+          clientY: 0
+        };
 
         function dispatchGameMouse(evName, btn, mx, my, cx, cy) {
           const frame = $('player-frame');
-          const payload = {
-            type: 'arcade:mouse',
-            event: evName,
-            button: btn != null ? btn : 0,
-            movementX: mx || 0,
-            movementY: my || 0,
-            clientX: cx || 0,
-            clientY: cy || 0
-          };
+          STATIC_MOUSE_PAYLOAD.event = evName;
+          STATIC_MOUSE_PAYLOAD.button = btn != null ? btn : 0;
+          STATIC_MOUSE_PAYLOAD.movementX = mx || 0;
+          STATIC_MOUSE_PAYLOAD.movementY = my || 0;
+          STATIC_MOUSE_PAYLOAD.clientX = cx || 0;
+          STATIC_MOUSE_PAYLOAD.clientY = cy || 0;
           try {
             if (frame && frame.contentWindow) {
-              frame.contentWindow.postMessage(payload, '*');
+              frame.contentWindow.postMessage(STATIC_MOUSE_PAYLOAD, '*');
             }
           } catch (e) { }
         }
 
+        const STATIC_AXIS_PAYLOAD = {
+          type: 'arcade:axis',
+          axis: 0,
+          value: 0
+        };
+
         function dispatchGameAxis(axisNum, val) {
           const frame = $('player-frame');
-          const payload = {
-            type: 'arcade:axis',
-            axis: axisNum,
-            value: val
-          };
+          STATIC_AXIS_PAYLOAD.axis = axisNum;
+          STATIC_AXIS_PAYLOAD.value = val;
           try {
             if (frame && frame.contentWindow) {
-              frame.contentWindow.postMessage(payload, '*');
+              frame.contentWindow.postMessage(STATIC_AXIS_PAYLOAD, '*');
             }
           } catch (e) { }
         }
@@ -1778,7 +1811,8 @@
         }
 
         /* Each pointer owns one button (multi-touch dpad + action never collide) and
-           setPointerCapture guarantees the matching keyup, so keys can't get stuck. */
+           setPointerCapture guarantees the matching keyup, so keys can't get stuck.
+           Smooth thumb-sliding / chord-rolling between action & dpad buttons. */
         vg.querySelectorAll('.vg-btn').forEach(b => {
           b.addEventListener('pointerdown', e => {
             e.preventDefault();
@@ -1786,10 +1820,32 @@
             heldByPointer.set(e.pointerId, b);
             pressButton(b);
           });
+          b.addEventListener('pointermove', e => {
+            if (!heldByPointer.has(e.pointerId)) return;
+            const prev = heldByPointer.get(e.pointerId);
+            const under = document.elementFromPoint(e.clientX, e.clientY);
+            const curr = under ? under.closest('.vg-btn') : null;
+            if (curr && curr !== prev) {
+              if (prev) releaseButton(prev);
+              pressButton(curr);
+              heldByPointer.set(e.pointerId, curr);
+            } else if (!curr && prev) {
+              const r = prev.getBoundingClientRect();
+              const pad = 28;
+              if (e.clientX < r.left - pad || e.clientX > r.right + pad ||
+                  e.clientY < r.top - pad  || e.clientY > r.bottom + pad) {
+                releaseButton(prev);
+                heldByPointer.set(e.pointerId, null);
+              }
+            } else if (curr && !prev) {
+              pressButton(curr);
+              heldByPointer.set(e.pointerId, curr);
+            }
+          });
           const up = e => {
-            const target = heldByPointer.get(e.pointerId) || b;
+            const target = heldByPointer.get(e.pointerId);
             heldByPointer.delete(e.pointerId);
-            releaseButton(target);
+            if (target) releaseButton(target);
           };
           b.addEventListener('pointerup', up);
           b.addEventListener('pointercancel', up);
