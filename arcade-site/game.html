@@ -1521,9 +1521,10 @@
         let stickStartTime = 0;
         let stickActive = false;
         let stickHoldTimer = null;
-        const STICK_MAX_RADIUS = 52;     // max knob travel in pixels
-        const STICK_DRAG_THRESH = 8;     // min drag distance in px to spawn stick
-        const STICK_HOLD_DELAY = 280;    // ms to spawn stick on hold (~30% of a sec)
+        const STICK_MAX_RADIUS = 50;     // max knob travel in pixels
+        const STICK_DEADZONE = 0.16;     // inner deadzone to filter micro-tremors
+        const STICK_DRAG_THRESH = 7;     // min drag distance in px to spawn stick
+        const STICK_HOLD_DELAY = 220;    // ms to spawn stick on hold (snappy 0.22s)
 
         let lastAxis0 = 0;
         let lastAxis1 = 0;
@@ -1564,21 +1565,33 @@
           dispatchGameAxis(1, 0);
         }
 
-        function applyStickVector(rawX, rawY) {
-          const clampedX = Math.max(-1, Math.min(1, rawX));
-          const clampedY = Math.max(-1, Math.min(1, rawY));
+        function applyStickVector(ax0, ax1, angle, isActive) {
+          setAnalogAxes(ax0, ax1);
 
-          // Gentle power curve (x^1.6): subtle steering near center, full at perimeter
-          const curve = v => Math.sign(v) * Math.pow(Math.abs(v), 1.6);
-          setAnalogAxes(curve(clampedX), curve(clampedY));
+          if (!isActive) {
+            if (activeStickDirs.size > 0) {
+              activeStickDirs.forEach(k => dispatchGameInput('keyup', k, k));
+              activeStickDirs.clear();
+            }
+            return;
+          }
 
-          // Digital directional keys (deadzone 0.20)
-          const dead = 0.20;
+          // Exact 8-way directional sector mapping (-180 to 180 deg)
+          const deg = (angle * 180) / Math.PI;
           const want = new Set();
-          if (clampedY < -dead) { want.add('ArrowUp');    want.add('KeyW'); }
-          if (clampedY >  dead) { want.add('ArrowDown');  want.add('KeyS'); }
-          if (clampedX < -dead) { want.add('ArrowLeft');  want.add('KeyA'); }
-          if (clampedX >  dead) { want.add('ArrowRight'); want.add('KeyD'); }
+
+          if (deg >= -67.5 && deg <= 67.5) {
+            want.add('ArrowRight'); want.add('KeyD');
+          }
+          if (deg >= 22.5 && deg <= 157.5) {
+            want.add('ArrowDown'); want.add('KeyS');
+          }
+          if (deg >= 112.5 || deg <= -112.5) {
+            want.add('ArrowLeft'); want.add('KeyA');
+          }
+          if (deg >= -157.5 && deg <= -22.5) {
+            want.add('ArrowUp'); want.add('KeyW');
+          }
 
           // Release keys no longer pressed
           activeStickDirs.forEach(k => {
@@ -1593,9 +1606,16 @@
         function activateStick(originX, originY) {
           if (stickActive) return;
           stickActive = true;
+          // Boundary clamp so stick doesn't spawn half off-screen
+          const PAD = STICK_MAX_RADIUS + 14;
+          const clampedX = Math.max(PAD, Math.min(window.innerWidth * 0.5 - 10, originX));
+          const clampedY = Math.max(PAD, Math.min(window.innerHeight - PAD, originY));
+          stickStartX = clampedX;
+          stickStartY = clampedY;
+
           if (stickWidget) {
-            stickWidget.style.left = originX + 'px';
-            stickWidget.style.top  = originY + 'px';
+            stickWidget.style.left = clampedX + 'px';
+            stickWidget.style.top  = clampedY + 'px';
             stickWidget.classList.add('is-active');
           }
           if (stickKnob) {
@@ -1606,23 +1626,43 @@
         }
 
         function updateStickPosition(clientX, clientY) {
-          const dx = clientX - stickStartX;
-          const dy = clientY - stickStartY;
+          let dx = clientX - stickStartX;
+          let dy = clientY - stickStartY;
           const dist = Math.hypot(dx, dy);
 
-          let knobX = dx;
-          let knobY = dy;
+          // Dynamic Floating Anchor (Follow mode like NippleJS & DroidDeck):
+          // Smoothly slides base when thumb moves far, giving zero-latency direction reversals.
           if (dist > STICK_MAX_RADIUS) {
-            knobX = (dx / dist) * STICK_MAX_RADIUS;
-            knobY = (dy / dist) * STICK_MAX_RADIUS;
+            const angle = Math.atan2(dy, dx);
+            const excess = dist - STICK_MAX_RADIUS;
+            stickStartX += Math.cos(angle) * excess;
+            stickStartY += Math.sin(angle) * excess;
+            if (stickWidget) {
+              stickWidget.style.left = stickStartX + 'px';
+              stickWidget.style.top  = stickStartY + 'px';
+            }
+            dx = Math.cos(angle) * STICK_MAX_RADIUS;
+            dy = Math.sin(angle) * STICK_MAX_RADIUS;
           }
 
           if (stickKnob) {
-            stickKnob.style.transform = `translate3d(${knobX}px, ${knobY}px, 0)`;
+            stickKnob.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
           }
 
-          // Calculate normalized vectors (-1.0 to 1.0)
-          applyStickVector(knobX / STICK_MAX_RADIUS, knobY / STICK_MAX_RADIUS);
+          const normDist = Math.min(1, Math.hypot(dx, dy) / STICK_MAX_RADIUS);
+          if (normDist < STICK_DEADZONE) {
+            applyStickVector(0, 0, 0, false);
+            return;
+          }
+
+          // Smooth radial power curve
+          const scaledMag = (normDist - STICK_DEADZONE) / (1 - STICK_DEADZONE);
+          const curvedMag = Math.pow(scaledMag, 1.35);
+          const angle = Math.atan2(dy, dx);
+          const ax0 = Math.cos(angle) * curvedMag;
+          const ax1 = Math.sin(angle) * curvedMag;
+
+          applyStickVector(ax0, ax1, angle, true);
         }
 
         function endStickSession(wasTap, clientX, clientY) {
@@ -1810,42 +1850,66 @@
           });
         }
 
-        /* Each pointer owns one button (multi-touch dpad + action never collide) and
-           setPointerCapture guarantees the matching keyup, so keys can't get stuck.
-           Smooth thumb-sliding / chord-rolling between action & dpad buttons. */
+        /* ── DroidDeck-Style Chord Matrix & Rolling Thumb Engine ──
+           Allows natural thumb rolling between adjacent buttons (e.g. A + B chord,
+           sliding along D-Pad cross) with zero key stuck bugs and ref-counted multi-touch. */
+        const CHORD_RADIUS = 46;
+
+        function getButtonsNearPoint(cx, cy, defaultBtn) {
+          const res = new Set();
+          const cluster = defaultBtn ? defaultBtn.closest('.vg-actions, .vg-dpad') : null;
+          if (cluster) {
+            cluster.querySelectorAll('.vg-btn').forEach(btn => {
+              const r = btn.getBoundingClientRect();
+              const bx = r.left + r.width / 2;
+              const by = r.top + r.height / 2;
+              if (Math.hypot(cx - bx, cy - by) <= CHORD_RADIUS) {
+                res.add(btn);
+              }
+            });
+          }
+          if (res.size === 0 && defaultBtn) {
+            res.add(defaultBtn);
+          }
+          return res;
+        }
+
         vg.querySelectorAll('.vg-btn').forEach(b => {
           b.addEventListener('pointerdown', e => {
             e.preventDefault();
             try { b.setPointerCapture(e.pointerId); } catch (ce) { }
-            heldByPointer.set(e.pointerId, b);
-            pressButton(b);
+            const activeSet = getButtonsNearPoint(e.clientX, e.clientY, b);
+            heldByPointer.set(e.pointerId, activeSet);
+            activeSet.forEach(btn => pressButton(btn));
           });
           b.addEventListener('pointermove', e => {
-            if (!heldByPointer.has(e.pointerId)) return;
-            const prev = heldByPointer.get(e.pointerId);
-            const under = document.elementFromPoint(e.clientX, e.clientY);
-            const curr = under ? under.closest('.vg-btn') : null;
-            if (curr && curr !== prev) {
-              if (prev) releaseButton(prev);
-              pressButton(curr);
-              heldByPointer.set(e.pointerId, curr);
-            } else if (!curr && prev) {
-              const r = prev.getBoundingClientRect();
-              const pad = 28;
-              if (e.clientX < r.left - pad || e.clientX > r.right + pad ||
-                  e.clientY < r.top - pad  || e.clientY > r.bottom + pad) {
-                releaseButton(prev);
-                heldByPointer.set(e.pointerId, null);
-              }
-            } else if (curr && !prev) {
-              pressButton(curr);
-              heldByPointer.set(e.pointerId, curr);
+            const prevSet = heldByPointer.get(e.pointerId);
+            if (!prevSet) return;
+            const newSet = getButtonsNearPoint(e.clientX, e.clientY, null);
+            if (newSet.size === 0) {
+              prevSet.forEach(btn => {
+                const r = btn.getBoundingClientRect();
+                const pad = 26;
+                if (e.clientX >= r.left - pad && e.clientX <= r.right + pad &&
+                    e.clientY >= r.top - pad  && e.clientY <= r.bottom + pad) {
+                  newSet.add(btn);
+                }
+              });
             }
+            prevSet.forEach(btn => {
+              if (!newSet.has(btn)) releaseButton(btn);
+            });
+            newSet.forEach(btn => {
+              if (!prevSet.has(btn)) pressButton(btn);
+            });
+            heldByPointer.set(e.pointerId, newSet);
           });
           const up = e => {
-            const target = heldByPointer.get(e.pointerId);
+            const activeSet = heldByPointer.get(e.pointerId);
             heldByPointer.delete(e.pointerId);
-            if (target) releaseButton(target);
+            if (activeSet) {
+              activeSet.forEach(btn => releaseButton(btn));
+            }
           };
           b.addEventListener('pointerup', up);
           b.addEventListener('pointercancel', up);
