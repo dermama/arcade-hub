@@ -517,8 +517,10 @@ body.player-is-landscape-surface {
 }
 
 /* ═══════════════════════════════════════════════════════
-   JOYSTICK ZONE — invisible, covers FULL LEFT 50%
-   nipplejs dynamic mode spawns wherever you first touch.
+   SMART ADAPTIVE JOYSTICK ZONE — covers FULL LEFT 50%
+   Adaptive touch discrimination:
+     • Quick tap (<300ms, <8px): passes through to game & UI
+     • Drag (>=8px) or hold (~280ms): dynamic analog stick surfaces smoothly
    ═══════════════════════════════════════════════════════ */
 .vg-stick-zone {
   position: absolute;
@@ -528,28 +530,63 @@ body.player-is-landscape-surface {
   pointer-events: auto;
   touch-action: none;
   background: transparent;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-/* nipplejs ring + knob styles */
-.vg-stick-zone .back {
+/* Floating dynamic joystick widget */
+.vg-stick-widget {
+  position: absolute;
+  top: 0; left: 0;
+  width: 128px; height: 128px;
+  margin-top: -64px; margin-left: -64px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(0, 0, 0) scale(0.85);
+  transition: opacity 0.14s ease-out, transform 0.14s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  z-index: 45;
+}
+
+.vg-stick-widget.is-active {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.vg-stick-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
   background: radial-gradient(circle,
-      rgba(255,255,255,0.09) 0%,
-      rgba(14,16,26,0.85)   70%) !important;
-  border: 2px solid rgba(167,139,250,0.65) !important;
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(14, 16, 26, 0.88)   70%);
+  border: 2px solid rgba(167, 139, 250, 0.65);
   box-shadow:
-    inset 0 0 22px rgba(0,0,0,0.55),
-    0 0 26px rgba(124,92,255,0.35) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+    inset 0 0 22px rgba(0, 0, 0, 0.60),
+    0 0 28px rgba(124, 92, 255, 0.40);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
-.vg-stick-zone .front {
-  background: radial-gradient(circle at 35% 35%, #b08aff, #5028cc) !important;
-  border: 2px solid rgba(255,255,255,0.65) !important;
+
+.vg-stick-knob {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 58px; height: 58px;
+  margin-top: -29px; margin-left: -29px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #b08aff 0%, #6d28d9 65%, #3b0764 100%);
+  border: 2px solid rgba(255, 255, 255, 0.75);
   box-shadow:
-    0 4px 16px rgba(0,0,0,0.60),
-    inset 0 2px 8px rgba(255,255,255,0.40) !important;
+    0 4px 18px rgba(0, 0, 0, 0.70),
+    0 0 12px rgba(167, 139, 250, 0.50),
+    inset 0 2px 8px rgba(255, 255, 255, 0.45);
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
 }
-.vg-stick-base, .vg-stick-knob { display: none !important; }
+
+.vg-stick-knob.is-springing {
+  transition: transform 0.18s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
 
 /* ── Shoulder Triggers (L1 / R1) ── */
 .vg-shoulders {

@@ -381,7 +381,13 @@
           if (ev.data.type === "arcade:mouse") {
             try {
               var mType = ev.data.event || "mousemove";
-              var target = document.querySelector("canvas") || document.activeElement || window;
+              var target = null;
+              if (ev.data.clientX != null && ev.data.clientY != null && typeof document.elementFromPoint === "function") {
+                target = document.elementFromPoint(ev.data.clientX, ev.data.clientY);
+              }
+              if (!target) {
+                target = document.querySelector("canvas") || document.activeElement || window;
+              }
               var btn = ev.data.button != null ? ev.data.button : 0;
               var mEvent;
               try {
@@ -405,6 +411,35 @@
               target.dispatchEvent(mEvent);
               document.dispatchEvent(mEvent);
               window.dispatchEvent(mEvent);
+
+              if (mType === "click" && target && typeof target.click === "function" && target.tagName !== "CANVAS") {
+                try { target.click(); } catch (ce) {}
+              }
+
+              if (window.TouchEvent && (mType === "mousedown" || mType === "mouseup")) {
+                try {
+                  var tType = mType === "mousedown" ? "touchstart" : "touchend";
+                  var touch = new Touch({
+                    identifier: 1,
+                    target: target,
+                    clientX: ev.data.clientX || (window.innerWidth / 2),
+                    clientY: ev.data.clientY || (window.innerHeight / 2),
+                    pageX: ev.data.clientX || (window.innerWidth / 2),
+                    pageY: ev.data.clientY || (window.innerHeight / 2),
+                    screenX: ev.data.clientX || 0,
+                    screenY: ev.data.clientY || 0
+                  });
+                  var touchEv = new TouchEvent(tType, {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    touches: mType === "mousedown" ? [touch] : [],
+                    targetTouches: mType === "mousedown" ? [touch] : [],
+                    changedTouches: [touch]
+                  });
+                  target.dispatchEvent(touchEv);
+                } catch (te) {}
+              }
             } catch (errM) {}
             return;
           }

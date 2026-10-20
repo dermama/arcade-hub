@@ -357,9 +357,13 @@
               aria-label="R1 Fire">R1</button>
           </div>
 
-          <!-- ② Joystick invisible overlay — FULL LEFT HALF of screen -->
-          <!--   nipplejs spawns wherever thumb touches inside this zone     -->
-          <div class="vg-stick-zone" id="vg-stick-zone"></div>
+          <!-- ② Joystick zone — FULL LEFT HALF of screen (adaptive tap passthrough + dynamic analog stick) -->
+          <div class="vg-stick-zone" id="vg-stick-zone">
+            <div class="vg-stick-widget" id="vg-stick-widget" aria-hidden="true">
+              <div class="vg-stick-ring"></div>
+              <div class="vg-stick-knob"></div>
+            </div>
+          </div>
 
           <!-- ③ D-Pad (hidden by default, toggled by vg-stick-toggle) -->
           <div class="vg-dpad" id="vg-dpad">
@@ -384,7 +388,7 @@
           <div class="vg-actions">
             <div class="vg-act-row">
               <button class="vg-btn vg-action" type="button" data-key="KeyE" data-code="KeyE" aria-label="X">X</button>
-              <button class="vg-btn vg-action" type="button" data-key="KeyZ" data-code="KeyZ" aria-label="Y">Y</button>
+              <button class="vg-btn vg-action" type="button" data-key="KeyY" data-code="KeyY" aria-label="Y">Y</button>
             </div>
             <div class="vg-act-row">
               <button class="vg-btn vg-action vg-pri" type="button" data-key="Space" data-code="Space" aria-label="A">A</button>
@@ -1384,6 +1388,7 @@
         function releaseAllButtons() {
           heldByPointer.clear();
           Array.from(heldButtons).forEach(releaseButton);
+          if (typeof endStickSession === 'function') endStickSession(false, 0, 0);
           releaseStickDirs();
         }
 
@@ -1463,16 +1468,29 @@
           } catch (e) { }
         }
 
-        /* ── nipplejs Dynamic Joystick Integration ── */
-        /* ── Joystick Engine (nipplejs dynamic) ────────────────────────────────
-           Zone = full left 50% of screen (CSS). Joystick spawns exactly where
-           thumb first touches, vanishes on release. Dispatches both:
-             • Analog axes  (arcade:axis 0/1) for smooth steering
-             • Digital keys (ArrowUp/Down/Left/Right + W/A/S/D) for pixel games
+        /* ── Smart Adaptive Analog Stick & Tap Passthrough Engine ─────────────
+           Zone = Full left 50% of screen.
+           • Quick tap (< 300ms, < 8px): Passes through as a real click/touch to
+             any UI element or underlying game canvas without showing the stick.
+           • Hold (~280ms) or Drag (>= 8px): Smoothly surfaces the dynamic analog
+             stick right where the thumb touched.
+           • Spring-back animation on release.
+           • Zero lost pointers or stuck states (global release on blur / cancel).
            ────────────────────────────────────────────────────────────────── */
         const stickZone = $('vg-stick-zone');
+        const stickWidget = $('vg-stick-widget');
+        const stickKnob = stickWidget ? stickWidget.querySelector('.vg-stick-knob') : null;
         const activeStickDirs = new Set();
-        let nippleManager = null;
+
+        let stickTouchId = null;
+        let stickStartX = 0;
+        let stickStartY = 0;
+        let stickStartTime = 0;
+        let stickActive = false;
+        let stickHoldTimer = null;
+        const STICK_MAX_RADIUS = 52;     // max knob travel in pixels
+        const STICK_DRAG_THRESH = 8;     // min drag distance in px to spawn stick
+        const STICK_HOLD_DELAY = 280;    // ms to spawn stick on hold (~30% of a sec)
 
         function releaseStickDirs() {
           activeStickDirs.forEach(k => dispatchGameInput('keyup', k, k));
@@ -1481,22 +1499,22 @@
           dispatchGameAxis(1, 0);
         }
 
-        function applyStickVector(vector) {
-          const rawX = Math.max(-1, Math.min(1, vector.x));
-          const rawY = Math.max(-1, Math.min(1, vector.y));
+        function applyStickVector(rawX, rawY) {
+          const clampedX = Math.max(-1, Math.min(1, rawX));
+          const clampedY = Math.max(-1, Math.min(1, rawY));
 
-          // Gentle curve (x^1.6): smooth near center, full at edge
+          // Gentle power curve (x^1.6): subtle steering near center, full at perimeter
           const curve = v => Math.sign(v) * Math.pow(Math.abs(v), 1.6);
-          dispatchGameAxis(0, curve(rawX));
-          dispatchGameAxis(1, curve(rawY));
+          dispatchGameAxis(0, curve(clampedX));
+          dispatchGameAxis(1, curve(clampedY));
 
           // Digital directional keys (deadzone 0.18)
           const dead = 0.18;
           const want = new Set();
-          if (rawY < -dead) { want.add('ArrowUp');    want.add('KeyW'); }
-          if (rawY >  dead) { want.add('ArrowDown');  want.add('KeyS'); }
-          if (rawX < -dead) { want.add('ArrowLeft');  want.add('KeyA'); }
-          if (rawX >  dead) { want.add('ArrowRight'); want.add('KeyD'); }
+          if (clampedY < -dead) { want.add('ArrowUp');    want.add('KeyW'); }
+          if (clampedY >  dead) { want.add('ArrowDown');  want.add('KeyS'); }
+          if (clampedX < -dead) { want.add('ArrowLeft');  want.add('KeyA'); }
+          if (clampedX >  dead) { want.add('ArrowRight'); want.add('KeyD'); }
 
           // Release keys no longer pressed
           activeStickDirs.forEach(k => {
@@ -1508,33 +1526,149 @@
           });
         }
 
-        function initNipple() {
-          if (!stickZone || typeof nipplejs === 'undefined') return;
-          if (nippleManager) { try { nippleManager.destroy(); } catch(_){} nippleManager = null; }
-
-          nippleManager = nipplejs.create({
-            zone:        stickZone,
-            mode:        'dynamic',   // appears where thumb touches
-            restOpacity: 0,           // invisible when idle
-            color:       '#a78bfa',
-            size:        120,
-            threshold:   0.08,        // quick start response
-            fadeTime:    100,
-            multitouch:  false,
-            dataOnly:    false,
-            restJoystick: true,
-          });
-
-          nippleManager.on('move', (_, data) => {
-            if (data && data.vector) applyStickVector(data.vector);
-          });
-          nippleManager.on('end', () => releaseStickDirs());
-          nippleManager.on('start', () => {
-            if (navigator.vibrate) try { navigator.vibrate(6); } catch(_) {}
-          });
+        function activateStick(originX, originY) {
+          if (stickActive) return;
+          stickActive = true;
+          if (stickWidget) {
+            stickWidget.style.left = originX + 'px';
+            stickWidget.style.top  = originY + 'px';
+            stickWidget.classList.add('is-active');
+          }
+          if (stickKnob) {
+            stickKnob.classList.remove('is-springing');
+            stickKnob.style.transform = 'translate3d(0, 0, 0)';
+          }
+          if (navigator.vibrate) try { navigator.vibrate(8); } catch (_) {}
         }
 
-        initNipple();
+        function updateStickPosition(clientX, clientY) {
+          const dx = clientX - stickStartX;
+          const dy = clientY - stickStartY;
+          const dist = Math.hypot(dx, dy);
+
+          let knobX = dx;
+          let knobY = dy;
+          if (dist > STICK_MAX_RADIUS) {
+            knobX = (dx / dist) * STICK_MAX_RADIUS;
+            knobY = (dy / dist) * STICK_MAX_RADIUS;
+          }
+
+          if (stickKnob) {
+            stickKnob.style.transform = `translate3d(${knobX}px, ${knobY}px, 0)`;
+          }
+
+          // Calculate normalized vectors (-1.0 to 1.0)
+          applyStickVector(knobX / STICK_MAX_RADIUS, knobY / STICK_MAX_RADIUS);
+        }
+
+        function endStickSession(wasTap, clientX, clientY) {
+          if (stickHoldTimer) {
+            clearTimeout(stickHoldTimer);
+            stickHoldTimer = null;
+          }
+
+          if (stickActive) {
+            stickActive = false;
+            releaseStickDirs();
+            if (stickKnob) {
+              stickKnob.classList.add('is-springing');
+              stickKnob.style.transform = 'translate3d(0, 0, 0)';
+            }
+            if (stickWidget) {
+              stickWidget.classList.remove('is-active');
+            }
+          } else if (wasTap) {
+            forwardTapClick(clientX, clientY);
+          }
+
+          stickTouchId = null;
+        }
+
+        function forwardTapClick(cx, cy) {
+          // 1. Check if there is an interactive DOM element under the touch (e.g. shoulder button, dialog, menu)
+          try {
+            stickZone.style.pointerEvents = 'none';
+            const underEl = document.elementFromPoint(cx, cy);
+            stickZone.style.pointerEvents = 'auto';
+
+            if (underEl && underEl !== stickZone) {
+              const btn = underEl.closest('.vg-btn, .vg-tool-btn, .btn, button, a');
+              if (btn) {
+                btn.click();
+                return;
+              }
+            }
+          } catch (_) {
+            stickZone.style.pointerEvents = 'auto';
+          }
+
+          // 2. Dispatch simulated click + touch to game iframe canvas/elements
+          dispatchGameMouse('mousemove', 0, 0, 0, cx, cy);
+          dispatchGameMouse('mousedown', 0, 0, 0, cx, cy);
+          setTimeout(() => {
+            dispatchGameMouse('mouseup', 0, 0, 0, cx, cy);
+            dispatchGameMouse('click', 0, 0, 0, cx, cy);
+          }, 25);
+        }
+
+        if (stickZone) {
+          stickZone.addEventListener('pointerdown', e => {
+            // If user explicitly pressed a button, let the button handle it
+            if (e.target.closest('.vg-btn, .vg-tools, .vg-tool-btn, .vg-system')) return;
+            if (stickTouchId !== null) return; // single stick touch
+            stickTouchId = e.pointerId;
+
+            try { stickZone.setPointerCapture(e.pointerId); } catch (_) {}
+
+            stickStartX = e.clientX;
+            stickStartY = e.clientY;
+            stickStartTime = performance.now();
+            stickActive = false;
+
+            // Timer: if thumb rests ~280ms (30% of a second), spawn joystick
+            stickHoldTimer = setTimeout(() => {
+              if (stickTouchId === e.pointerId) {
+                activateStick(stickStartX, stickStartY);
+              }
+            }, STICK_HOLD_DELAY);
+          });
+
+          stickZone.addEventListener('pointermove', e => {
+            if (e.pointerId !== stickTouchId) return;
+
+            const dx = e.clientX - stickStartX;
+            const dy = e.clientY - stickStartY;
+            const dist = Math.hypot(dx, dy);
+
+            if (!stickActive) {
+              // Drag detected -> immediately activate joystick!
+              if (dist >= STICK_DRAG_THRESH) {
+                if (stickHoldTimer) { clearTimeout(stickHoldTimer); stickHoldTimer = null; }
+                activateStick(stickStartX, stickStartY);
+                updateStickPosition(e.clientX, e.clientY);
+              }
+            } else {
+              updateStickPosition(e.clientX, e.clientY);
+            }
+          });
+
+          const onStickEnd = e => {
+            if (e.pointerId !== stickTouchId) return;
+            const elapsed = performance.now() - stickStartTime;
+            const dist = Math.hypot(e.clientX - stickStartX, e.clientY - stickStartY);
+            // Quick tap condition: short duration and minimal movement
+            const wasTap = !stickActive && elapsed < 350 && dist < (STICK_DRAG_THRESH + 4);
+            endStickSession(wasTap, e.clientX, e.clientY);
+          };
+
+          stickZone.addEventListener('pointerup', onStickEnd);
+          stickZone.addEventListener('pointercancel', e => {
+            if (e.pointerId === stickTouchId) endStickSession(false, 0, 0);
+          });
+          stickZone.addEventListener('lostpointercapture', e => {
+            if (e.pointerId === stickTouchId) endStickSession(false, 0, 0);
+          });
+        }
 
         /* Toggle: Stick ↔ D-Pad */
         const btnStickToggle = $('vg-stick-toggle');
@@ -1548,11 +1682,9 @@
               stickZone.style.display = 'block';
               dpadEl.style.display    = 'none';
               btnStickToggle.textContent = '🕹️';
-              // Re-init nipplejs whenever zone becomes visible
-              initNipple();
             } else {
+              endStickSession(false, 0, 0);
               releaseStickDirs();
-              if (nippleManager) { try { nippleManager.destroy(); } catch(_){} nippleManager = null; }
               stickZone.style.display = 'none';
               dpadEl.style.display    = 'flex';
               btnStickToggle.textContent = '🔲';
