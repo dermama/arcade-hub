@@ -338,64 +338,63 @@
           Loading game…
         </div>
 
-        <!-- VIRTUAL TOUCH GAMEPAD (Inspired by DroidDeck Wayland Touch Passthrough) -->
+        <!-- VIRTUAL TOUCH GAMEPAD v2 — Full rebuild -->
         <div class="virtual-gamepad" id="virtual-gamepad" hidden>
-          <!-- Top Shoulder Triggers (L1 Aim / R1 Fire) -->
+
+          <!-- ① Shoulder bar: L1 · tools · R1 -->
           <div class="vg-shoulders">
-            <button class="vg-btn vg-shoulder" id="vg-l1" type="button" data-key="ShiftLeft" data-code="ShiftLeft" data-mouse="right" aria-label="L1 Aim">L1 AIM</button>
+            <button class="vg-btn vg-shoulder" id="vg-l1" type="button"
+              data-key="ShiftLeft" data-code="ShiftLeft" data-mouse="right"
+              aria-label="L1 Aim">L1</button>
             <div class="vg-tools">
-              <button class="vg-tool-btn" id="vg-stick-toggle" type="button" title="Toggle Analog Stick / D-Pad">🕹️</button>
-              <button class="vg-tool-btn" id="vg-ghost-toggle" type="button" title="Toggle Ghost Mode (Transparency)">👁️</button>
+              <button class="vg-tool-btn" id="vg-stick-toggle" type="button"
+                title="Toggle Stick / D-Pad">🕹️</button>
+              <button class="vg-tool-btn" id="vg-ghost-toggle" type="button"
+                title="Ghost mode">👁️</button>
             </div>
-            <button class="vg-btn vg-shoulder vg-pri" id="vg-r1" type="button" data-key="Space" data-code="Space" data-mouse="left" aria-label="R1 Fire">R1 FIRE</button>
+            <button class="vg-btn vg-shoulder vg-pri" id="vg-r1" type="button"
+              data-key="Space" data-code="Space" data-mouse="left"
+              aria-label="R1 Fire">R1</button>
           </div>
 
-          <!-- Left Directional Controls (Analog Thumbstick + Classic D-Pad) -->
-          <div class="vg-left-cluster">
-            <div class="vg-stick-zone" id="vg-stick-zone">
-              <div class="vg-stick-base" id="vg-stick-base">
-                <div class="vg-stick-knob" id="vg-stick-knob"></div>
-              </div>
+          <!-- ② Joystick invisible overlay — FULL LEFT HALF of screen -->
+          <!--   nipplejs spawns wherever thumb touches inside this zone     -->
+          <div class="vg-stick-zone" id="vg-stick-zone"></div>
+
+          <!-- ③ D-Pad (hidden by default, toggled by vg-stick-toggle) -->
+          <div class="vg-dpad" id="vg-dpad">
+            <button class="vg-btn" type="button" data-key="ArrowUp" data-code="ArrowUp" aria-label="Up">▲</button>
+            <div class="vg-mid-row">
+              <button class="vg-btn" type="button" data-key="ArrowLeft" data-code="ArrowLeft" aria-label="Left">◀</button>
+              <div class="vg-center"></div>
+              <button class="vg-btn" type="button" data-key="ArrowRight" data-code="ArrowRight" aria-label="Right">▶</button>
             </div>
-            <div class="vg-dpad" id="vg-dpad" style="display:none">
-              <button class="vg-btn vg-up" type="button" data-key="ArrowUp" data-code="ArrowUp" aria-label="Up">▲</button>
-              <div class="vg-mid-row">
-                <button class="vg-btn vg-left" type="button" data-key="ArrowLeft" data-code="ArrowLeft"
-                  aria-label="Left">◀</button>
-                <div class="vg-center"></div>
-                <button class="vg-btn vg-right" type="button" data-key="ArrowRight" data-code="ArrowRight"
-                  aria-label="Right">▶</button>
-              </div>
-              <button class="vg-btn vg-down" type="button" data-key="ArrowDown" data-code="ArrowDown"
-                aria-label="Down">▼</button>
-            </div>
+            <button class="vg-btn" type="button" data-key="ArrowDown" data-code="ArrowDown" aria-label="Down">▼</button>
           </div>
 
-          <!-- System buttons (Start / Select) -->
+          <!-- ④ System pills (Start / Select) -- center bottom -->
           <div class="vg-system">
-            <button class="vg-btn vg-pill" type="button" data-key="ShiftRight" data-code="ShiftRight"
-              aria-label="Select">SELECT</button>
+            <button class="vg-btn vg-pill" type="button" data-key="Escape" data-code="Escape"
+              aria-label="Menu">MENU</button>
             <button class="vg-btn vg-pill" type="button" data-key="Enter" data-code="Enter"
               aria-label="Start">START</button>
           </div>
 
-          <!-- Right Action Cluster (A, B, X, Y) -->
+          <!-- ⑤ Right action cluster (A B X Y) -->
           <div class="vg-actions">
             <div class="vg-act-row">
               <button class="vg-btn vg-action" type="button" data-key="KeyE" data-code="KeyE" aria-label="X">X</button>
-              <button class="vg-btn vg-action" type="button" data-key="KeyY" data-code="KeyY" aria-label="Y">Y</button>
+              <button class="vg-btn vg-action" type="button" data-key="KeyZ" data-code="KeyZ" aria-label="Y">Y</button>
             </div>
             <div class="vg-act-row">
-              <button class="vg-btn vg-action vg-pri" type="button" data-key="Space" data-code="Space"
-                aria-label="A">A</button>
-              <button class="vg-btn vg-action" type="button" data-key="ShiftLeft" data-code="ShiftLeft"
-                aria-label="B">B</button>
+              <button class="vg-btn vg-action vg-pri" type="button" data-key="Space" data-code="Space" aria-label="A">A</button>
+              <button class="vg-btn vg-action" type="button" data-key="ShiftLeft" data-code="ShiftLeft" aria-label="B">B</button>
             </div>
           </div>
 
-          <!-- Swipe-To-Look Zone (Transparent surface for smooth camera aiming in 3D/FPS games) -->
+          <!-- ⑥ Right swipe-to-look zone (3D / FPS camera) -->
           <div class="vg-look-surface" id="vg-look-surface">
-            <span class="vg-look-hint" id="vg-look-hint">Swipe to Look ↺</span>
+            <span class="vg-look-hint" id="vg-look-hint">Swipe ↺</span>
           </div>
         </div>
       </div>
@@ -1385,7 +1384,7 @@
         function releaseAllButtons() {
           heldByPointer.clear();
           Array.from(heldButtons).forEach(releaseButton);
-          resetStickInput();
+          releaseStickDirs();
         }
 
         function setGamepad(show) {
@@ -1465,8 +1464,12 @@
         }
 
         /* ── nipplejs Dynamic Joystick Integration ── */
-        /*  "dynamic" mode = spawns exactly where the finger touches,
-            disappears on release. Exactly what the user requested.         */
+        /* ── Joystick Engine (nipplejs dynamic) ────────────────────────────────
+           Zone = full left 50% of screen (CSS). Joystick spawns exactly where
+           thumb first touches, vanishes on release. Dispatches both:
+             • Analog axes  (arcade:axis 0/1) for smooth steering
+             • Digital keys (ArrowUp/Down/Left/Right + W/A/S/D) for pixel games
+           ────────────────────────────────────────────────────────────────── */
         const stickZone = $('vg-stick-zone');
         const activeStickDirs = new Set();
         let nippleManager = null;
@@ -1478,107 +1481,108 @@
           dispatchGameAxis(1, 0);
         }
 
-        function applyStickVector(vector, force) {
-          // vector = { x, y } normalized to ±1 from nipplejs
+        function applyStickVector(vector) {
           const rawX = Math.max(-1, Math.min(1, vector.x));
           const rawY = Math.max(-1, Math.min(1, vector.y));
 
-          // Curved sensitivity (x^1.7): precise near center, full at edge
-          const curve = v => Math.sign(v) * Math.pow(Math.abs(v), 1.7);
-          const normX = curve(rawX);
-          const normY = curve(rawY);
+          // Gentle curve (x^1.6): smooth near center, full at edge
+          const curve = v => Math.sign(v) * Math.pow(Math.abs(v), 1.6);
+          dispatchGameAxis(0, curve(rawX));
+          dispatchGameAxis(1, curve(rawY));
 
-          dispatchGameAxis(0, normX);
-          dispatchGameAxis(1, normY);
+          // Digital directional keys (deadzone 0.18)
+          const dead = 0.18;
+          const want = new Set();
+          if (rawY < -dead) { want.add('ArrowUp');    want.add('KeyW'); }
+          if (rawY >  dead) { want.add('ArrowDown');  want.add('KeyS'); }
+          if (rawX < -dead) { want.add('ArrowLeft');  want.add('KeyA'); }
+          if (rawX >  dead) { want.add('ArrowRight'); want.add('KeyD'); }
 
-          // Digital keys — use raw values with 0.2 deadzone
-          const dead = 0.20;
-          const wanted = new Set();
-          if (rawY < -dead) { wanted.add('ArrowUp');    wanted.add('KeyW'); }
-          if (rawY >  dead) { wanted.add('ArrowDown');  wanted.add('KeyS'); }
-          if (rawX < -dead) { wanted.add('ArrowLeft');  wanted.add('KeyA'); }
-          if (rawX >  dead) { wanted.add('ArrowRight'); wanted.add('KeyD'); }
-
+          // Release keys no longer pressed
           activeStickDirs.forEach(k => {
-            if (!wanted.has(k)) { activeStickDirs.delete(k); dispatchGameInput('keyup', k, k); }
+            if (!want.has(k)) { activeStickDirs.delete(k); dispatchGameInput('keyup', k, k); }
           });
-          wanted.forEach(k => {
+          // Press new keys
+          want.forEach(k => {
             if (!activeStickDirs.has(k)) { activeStickDirs.add(k); dispatchGameInput('keydown', k, k); }
           });
         }
 
         function initNipple() {
           if (!stickZone || typeof nipplejs === 'undefined') return;
-          if (nippleManager) { nippleManager.destroy(); nippleManager = null; }
+          if (nippleManager) { try { nippleManager.destroy(); } catch(_){} nippleManager = null; }
 
           nippleManager = nipplejs.create({
-            zone:       stickZone,
-            mode:       'dynamic',      // appears exactly where you touch
-            restOpacity: 0,             // invisible when idle
-            color:      '#a78bfa',
-            size:       110,
-            threshold:  0.1,            // very responsive dead zone
-            fadeTime:   120,
-            multitouch: false,
-            dataOnly:   false,
+            zone:        stickZone,
+            mode:        'dynamic',   // appears where thumb touches
+            restOpacity: 0,           // invisible when idle
+            color:       '#a78bfa',
+            size:        120,
+            threshold:   0.08,        // quick start response
+            fadeTime:    100,
+            multitouch:  false,
+            dataOnly:    false,
             restJoystick: true,
           });
 
-          nippleManager.on('move', (evt, data) => {
-            if (!data.vector) return;
-            applyStickVector(data.vector, data.force || 1);
+          nippleManager.on('move', (_, data) => {
+            if (data && data.vector) applyStickVector(data.vector);
           });
-
-          nippleManager.on('end', () => {
-            releaseStickDirs();
-          });
-
-          // Haptic on start
+          nippleManager.on('end', () => releaseStickDirs());
           nippleManager.on('start', () => {
-            if (navigator.vibrate) { try { navigator.vibrate(6); } catch (_) {} }
+            if (navigator.vibrate) try { navigator.vibrate(6); } catch(_) {}
           });
         }
 
         initNipple();
 
-        /* Re-init if stick/dpad toggle hides/shows stickZone */
-        function reinitNippleIfNeeded() {
-          if (stickZone && stickZone.style.display !== 'none') {
-            initNipple();
-          } else if (nippleManager) {
-            releaseStickDirs();
-            nippleManager.destroy();
-            nippleManager = null;
+        /* Toggle: Stick ↔ D-Pad */
+        const btnStickToggle = $('vg-stick-toggle');
+        const dpadEl = $('vg-dpad');
+        if (btnStickToggle && stickZone && dpadEl) {
+          let useStick = true;
+          try { useStick = localStorage.getItem('arcade.pad_stick') !== '0'; } catch(e) {}
+
+          function applyStickMode() {
+            if (useStick) {
+              stickZone.style.display = 'block';
+              dpadEl.style.display    = 'none';
+              btnStickToggle.textContent = '🕹️';
+              // Re-init nipplejs whenever zone becomes visible
+              initNipple();
+            } else {
+              releaseStickDirs();
+              if (nippleManager) { try { nippleManager.destroy(); } catch(_){} nippleManager = null; }
+              stickZone.style.display = 'none';
+              dpadEl.style.display    = 'flex';
+              btnStickToggle.textContent = '🔲';
+            }
+            try { localStorage.setItem('arcade.pad_stick', useStick ? '1' : '0'); } catch(e) {}
           }
+          applyStickMode();
+          btnStickToggle.addEventListener('click', () => { useStick = !useStick; applyStickMode(); });
         }
 
 
-
-        /* ── Swipe-To-Look Engine for 3D Camera & FPS Aiming ── */
-
+        /* ── Swipe-To-Look Engine (right half → 3D camera / FPS aim) ── */
         const lookZone = $('vg-look-surface');
         let lookActive = false, lookPointerId = null, lastLook = { x: 0, y: 0 };
         const lookHint = $('vg-look-hint');
 
         if (lookZone) {
           lookZone.addEventListener('pointerdown', e => {
-            // Only capture if not pressing a floating action button
             if (e.target.closest('.vg-btn, .vg-tools')) return;
             e.preventDefault();
-            try { lookZone.setPointerCapture(e.pointerId); } catch (ce) {}
-            lookActive = true;
-            lookPointerId = e.pointerId;
+            try { lookZone.setPointerCapture(e.pointerId); } catch (_) {}
+            lookActive = true; lookPointerId = e.pointerId;
             lastLook = { x: e.clientX, y: e.clientY };
             if (lookHint) lookHint.style.opacity = '0';
           });
-
           lookZone.addEventListener('pointermove', e => {
             if (!lookActive || e.pointerId !== lookPointerId) return;
             e.preventDefault();
-            const dx = e.clientX - lastLook.x;
-            const dy = e.clientY - lastLook.y;
+            const dx = e.clientX - lastLook.x, dy = e.clientY - lastLook.y;
             lastLook = { x: e.clientX, y: e.clientY };
-
             if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
               const sens = 1.6;
               dispatchGameMouse('mousemove', 0, dx * sens, dy * sens, e.clientX, e.clientY);
@@ -1586,40 +1590,15 @@
               dispatchGameAxis(3, Math.max(-1, Math.min(1, dy * 0.14)));
             }
           });
-
           const endLook = e => {
-            if (e.pointerId === lookPointerId) {
-              lookActive = false;
-              lookPointerId = null;
-              dispatchGameAxis(2, 0);
-              dispatchGameAxis(3, 0);
-            }
+            if (e.pointerId !== lookPointerId) return;
+            lookActive = false; lookPointerId = null;
+            dispatchGameAxis(2, 0); dispatchGameAxis(3, 0);
           };
           lookZone.addEventListener('pointerup', endLook);
           lookZone.addEventListener('pointercancel', endLook);
           lookZone.addEventListener('lostpointercapture', endLook);
         }
-
-        /* ── Quick Tools: Stick/Dpad Toggle & Ghost Transparency ── */
-        const btnStickToggle = $('vg-stick-toggle');
-        const dpadEl = $('vg-dpad');
-        if (btnStickToggle && stickZone && dpadEl) {
-          let useStick = true;
-          try { useStick = localStorage.getItem('arcade.pad_stick') !== '0'; } catch(e) {}
-          function applyStickMode() {
-            stickZone.style.display = useStick ? 'block' : 'none';
-            dpadEl.style.display = useStick ? 'none' : 'flex';
-            btnStickToggle.textContent = useStick ? '🕹️' : '🔲';
-            try { localStorage.setItem('arcade.pad_stick', useStick ? '1' : '0'); } catch(e) {}
-          }
-          applyStickMode();
-          btnStickToggle.addEventListener('click', () => {
-            useStick = !useStick;
-            applyStickMode();
-            reinitNippleIfNeeded();
-          });
-        }
-
 
         const btnGhostToggle = $('vg-ghost-toggle');
         if (btnGhostToggle && vg) {

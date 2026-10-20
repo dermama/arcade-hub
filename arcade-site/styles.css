@@ -422,18 +422,10 @@ body.player-is-landscape-surface {
   touch-action: none;
 }
 
-/* ---- VIRTUAL TOUCH GAMEPAD (Inspired by DroidDeck / SteamOS Touch Passthrough) ---- */
+/* ---- VIRTUAL TOUCH GAMEPAD v2 (Full rebuild) ---- */
 .virtual-gamepad {
   position: absolute;
-  inset: auto 0 0 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 12px;
-  padding: 16px 20px;
-  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  padding-left: calc(20px + env(safe-area-inset-left, 0px));
-  padding-right: calc(20px + env(safe-area-inset-right, 0px));
+  inset: 0;           /* covers full player-wrap area */
   pointer-events: none;
   z-index: 45;
   user-select: none;
@@ -442,207 +434,191 @@ body.player-is-landscape-surface {
   touch-action: none;
 }
 .virtual-gamepad[hidden] { display: none !important; }
+/* ── D-Pad — absolutely positioned bottom-left ── */
 .vg-dpad {
+  position: absolute;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  left:   calc(20px + env(safe-area-inset-left,   0px));
+  z-index: 48;
   display: flex;
   flex-direction: column;
   align-items: center;
   pointer-events: auto;
-  gap: 6px;
+  gap: 5px;
 }
 .vg-mid-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 .vg-center {
   width: 44px; height: 44px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.04);
 }
+/* ── Action buttons — bottom-right ── */
 .vg-actions {
+  position: absolute;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  right:  calc(20px + env(safe-area-inset-right,  0px));
+  z-index: 48;
   display: flex;
   flex-direction: column;
   gap: 8px;
   pointer-events: auto;
 }
-.vg-act-row {
-  display: flex;
-  gap: 8px;
-}
+.vg-act-row { display: flex; gap: 8px; }
+/* ── Base button ── */
 .vg-btn {
-  width: 56px;
-  height: 56px;
+  width: 56px; height: 56px;
   border-radius: 50%;
-  background: rgba(18, 20, 29, 0.75);
+  background: rgba(18, 20, 29, 0.78);
   border: 1.5px solid rgba(255, 255, 255, 0.22);
   color: #fff;
-  font-family: var(--disp);
-  font-size: 16px;
-  font-weight: 700;
-  display: grid;
-  place-items: center;
+  font-family: var(--disp); font-size: 16px; font-weight: 700;
+  display: grid; place-items: center;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(0,0,0,0.5);
   transition: transform .08s, background .08s;
   touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
+  user-select: none; -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
 }
 .vg-btn:active, .vg-btn.active {
-  transform: scale(0.92);
-  background: rgba(124, 92, 255, 0.65);
+  transform: scale(0.90);
+  background: rgba(124, 92, 255, 0.68);
   border-color: #a78bfa;
 }
 .vg-btn.vg-pri {
-  background: rgba(124, 92, 255, 0.35);
-  border-color: rgba(167, 139, 250, 0.5);
+  background: rgba(124, 92, 255, 0.36);
+  border-color: rgba(167, 139, 250, 0.55);
 }
-/* System row (Start / Select) — centered between dpad and actions */
+/* ── System pills (MENU / START) — bottom center ── */
 .vg-system {
+  position: absolute;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 48;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  gap: 10px;
   align-items: center;
-  justify-content: flex-end;
   pointer-events: auto;
 }
 .vg-pill {
-  width: auto;
-  min-width: 80px;
-  height: 34px;
+  width: auto; min-width: 72px; height: 32px;
   border-radius: 999px;
-  font-size: 11px;
-  letter-spacing: .08em;
-  padding: 0 14px;
-  place-items: center;
+  font-size: 10px; letter-spacing: .08em;
+  padding: 0 12px; place-items: center;
 }
 
-/* ── Analog Thumbstick Zone (nipplejs dynamic) ── */
+/* ═══════════════════════════════════════════════════════
+   JOYSTICK ZONE — invisible, covers FULL LEFT 50%
+   nipplejs dynamic mode spawns wherever you first touch.
+   ═══════════════════════════════════════════════════════ */
 .vg-stick-zone {
-  width: 160px;
-  height: 160px;
-  position: relative;
+  position: absolute;
+  top: 0; left: 0;
+  width: 50%; height: 100%;
+  z-index: 44;          /* above look-zone (40), below buttons (48) */
   pointer-events: auto;
   touch-action: none;
-  border-radius: 20px;
-  /* Subtle guide so user knows where to touch */
-  background: rgba(255,255,255,0.03);
-  border: 1px dashed rgba(255,255,255,0.10);
+  background: transparent;
 }
 
-/* Hide old manual base/knob — nipplejs renders its own */
+/* nipplejs ring + knob styles */
+.vg-stick-zone .back {
+  background: radial-gradient(circle,
+      rgba(255,255,255,0.09) 0%,
+      rgba(14,16,26,0.85)   70%) !important;
+  border: 2px solid rgba(167,139,250,0.65) !important;
+  box-shadow:
+    inset 0 0 22px rgba(0,0,0,0.55),
+    0 0 26px rgba(124,92,255,0.35) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+.vg-stick-zone .front {
+  background: radial-gradient(circle at 35% 35%, #b08aff, #5028cc) !important;
+  border: 2px solid rgba(255,255,255,0.65) !important;
+  box-shadow:
+    0 4px 16px rgba(0,0,0,0.60),
+    inset 0 2px 8px rgba(255,255,255,0.40) !important;
+}
 .vg-stick-base, .vg-stick-knob { display: none !important; }
 
-/* ── nipplejs element overrides ── */
-/* Back (outer ring) */
-.vg-stick-zone .back {
-  background: radial-gradient(circle, rgba(255,255,255,0.07) 0%, rgba(14,16,26,0.82) 70%) !important;
-  border: 2px solid rgba(167,139,250,0.55) !important;
-  box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 0 18px rgba(124,92,255,0.25) !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
-}
-/* Front (knob) */
-.vg-stick-zone .front {
-  background: radial-gradient(circle at 35% 35%, #a07aff, #5028cc) !important;
-  border: 2px solid rgba(255,255,255,0.55) !important;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.55), inset 0 2px 6px rgba(255,255,255,0.35) !important;
-}
-
-
-
-/* ── Mode Toggle & Tools (Stick / D-pad / Ghost) ── */
-.vg-tools {
+/* ── Shoulder Triggers (L1 / R1) ── */
+.vg-shoulders {
+  position: absolute;
+  top: 12px;
+  left:  calc(16px + env(safe-area-inset-left,  0px));
+  right: calc(16px + env(safe-area-inset-right, 0px));
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  pointer-events: none;
+  z-index: 50;
+}
+.vg-btn.vg-shoulder {
+  pointer-events: auto;
+  width: 68px; height: 38px;
+  border-radius: 12px;
+  font-size: 13px; letter-spacing: .04em;
+  background: rgba(14, 16, 26, 0.85);
+  border: 1.5px solid rgba(255,255,255,0.22);
+}
+/* ── Tool buttons ── */
+.vg-tools {
+  display: flex; align-items: center; gap: 8px;
   pointer-events: auto;
 }
 .vg-tool-btn {
-  width: 32px;
-  height: 32px;
+  width: 34px; height: 34px;
   border-radius: 50%;
-  background: rgba(18, 20, 29, 0.75);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: #a0c8ff;
-  font-size: 13px;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  touch-action: none;
+  background: rgba(18,20,29,0.78);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: #a0c8ff; font-size: 14px;
+  display: grid; place-items: center;
+  cursor: pointer; touch-action: none;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   transition: background .12s, transform .12s;
 }
-.vg-tool-btn:active { transform: scale(0.9); background: rgba(124,92,255,0.6); }
+.vg-tool-btn:active { transform: scale(0.88); background: rgba(124,92,255,0.65); }
 
-/* ── Swipe-To-Look Zone for 3D Camera / Aiming ── */
+/* ── Swipe-to-look (right half) ── */
 .vg-look-surface {
   position: absolute;
-  top: 0;
-  right: 0;
-  width: 50%;
-  height: 100%;
+  top: 0; right: 0;
+  width: 50%; height: 100%;
   z-index: 40;
   pointer-events: auto;
   touch-action: none;
 }
 .vg-look-hint {
   position: absolute;
-  top: 14px;
-  right: 20px;
+  top: 14px; right: 20px;
   font-size: 10px;
-  font-family: var(--disp);
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.4);
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  pointer-events: none;
-  transition: opacity .3s;
+  font-family: var(--disp); font-weight: 600;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: .06em; text-transform: uppercase;
+  pointer-events: none; transition: opacity .3s;
 }
 
-/* ── Shoulder Triggers (L1 / R1) ── */
-.vg-shoulders {
-  position: absolute;
-  top: 12px;
-  left: 16px;
-  right: 16px;
-  display: flex;
-  justify-content: space-between;
-  pointer-events: none;
-  z-index: 46;
-}
-.vg-btn.vg-shoulder {
-  pointer-events: auto;
-  width: 68px;
-  height: 38px;
-  border-radius: 12px;
-  font-size: 13px;
-  letter-spacing: .04em;
-  background: rgba(18, 20, 29, 0.82);
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
-}
-
-/* ── Ghost Mode & Tablet Sizes ── */
-.virtual-gamepad.is-ghost {
-  opacity: 0.35;
-  transition: opacity .2s ease;
-}
+/* ── Ghost Mode ── */
+.virtual-gamepad.is-ghost { opacity: 0.35; transition: opacity .2s; }
 .virtual-gamepad.is-ghost:hover,
-.virtual-gamepad.is-ghost:active {
-  opacity: 0.9;
-}
+.virtual-gamepad.is-ghost:active { opacity: 0.9; }
+
+/* ── Tablet scaling ── */
 @media (min-width: 768px) and (max-width: 1200px) {
-  /* iPad / Tablet optimized scaling */
-  .vg-btn { width: 68px; height: 68px; font-size: 18px; }
-  .vg-stick-zone { width: 170px; height: 170px; }
-  .vg-stick-base { width: 150px; height: 150px; }
-  .vg-stick-knob { width: 64px; height: 64px; }
-  .vg-pill { min-width: 96px; height: 38px; font-size: 12px; }
+  .vg-btn { width: 66px; height: 66px; font-size: 18px; }
+  .vg-btn.vg-shoulder { width: 80px; height: 42px; }
+  .vg-pill { min-width: 88px; height: 36px; font-size: 11px; }
 }
 
 /* ---- POSTER (thumbnail + Play button, shown before game loads) ---- */
