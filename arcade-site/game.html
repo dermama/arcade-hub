@@ -1492,9 +1492,41 @@
         const STICK_DRAG_THRESH = 8;     // min drag distance in px to spawn stick
         const STICK_HOLD_DELAY = 280;    // ms to spawn stick on hold (~30% of a sec)
 
+        let lastAxis0 = 0;
+        let lastAxis1 = 0;
+        let pendingAxis0 = 0;
+        let pendingAxis1 = 0;
+        let axisRafScheduled = false;
+
+        function flushAxisUpdates() {
+          axisRafScheduled = false;
+          const EPS = 0.015;
+          if (Math.abs(pendingAxis0 - lastAxis0) > EPS || (pendingAxis0 === 0 && lastAxis0 !== 0)) {
+            lastAxis0 = pendingAxis0;
+            dispatchGameAxis(0, pendingAxis0);
+          }
+          if (Math.abs(pendingAxis1 - lastAxis1) > EPS || (pendingAxis1 === 0 && lastAxis1 !== 0)) {
+            lastAxis1 = pendingAxis1;
+            dispatchGameAxis(1, pendingAxis1);
+          }
+        }
+
+        function setAnalogAxes(ax0, ax1) {
+          pendingAxis0 = ax0;
+          pendingAxis1 = ax1;
+          if (!axisRafScheduled) {
+            axisRafScheduled = true;
+            requestAnimationFrame(flushAxisUpdates);
+          }
+        }
+
         function releaseStickDirs() {
           activeStickDirs.forEach(k => dispatchGameInput('keyup', k, k));
           activeStickDirs.clear();
+          pendingAxis0 = 0;
+          pendingAxis1 = 0;
+          lastAxis0 = 0;
+          lastAxis1 = 0;
           dispatchGameAxis(0, 0);
           dispatchGameAxis(1, 0);
         }
@@ -1505,11 +1537,10 @@
 
           // Gentle power curve (x^1.6): subtle steering near center, full at perimeter
           const curve = v => Math.sign(v) * Math.pow(Math.abs(v), 1.6);
-          dispatchGameAxis(0, curve(clampedX));
-          dispatchGameAxis(1, curve(clampedY));
+          setAnalogAxes(curve(clampedX), curve(clampedY));
 
-          // Digital directional keys (deadzone 0.18)
-          const dead = 0.18;
+          // Digital directional keys (deadzone 0.20)
+          const dead = 0.20;
           const want = new Set();
           if (clampedY < -dead) { want.add('ArrowUp');    want.add('KeyW'); }
           if (clampedY >  dead) { want.add('ArrowDown');  want.add('KeyS'); }
@@ -1615,6 +1646,7 @@
           stickZone.addEventListener('pointerdown', e => {
             // If user explicitly pressed a button, let the button handle it
             if (e.target.closest('.vg-btn, .vg-tools, .vg-tool-btn, .vg-system')) return;
+            e.preventDefault();
             if (stickTouchId !== null) return; // single stick touch
             stickTouchId = e.pointerId;
 
@@ -1635,6 +1667,7 @@
 
           stickZone.addEventListener('pointermove', e => {
             if (e.pointerId !== stickTouchId) return;
+            e.preventDefault();
 
             const dx = e.clientX - stickStartX;
             const dy = e.clientY - stickStartY;
@@ -1761,10 +1794,6 @@
           b.addEventListener('pointerup', up);
           b.addEventListener('pointercancel', up);
           b.addEventListener('lostpointercapture', up);
-          /* Fallback for engines without pointer capture: sliding off releases. */
-          b.addEventListener('pointerleave', e => {
-            if (heldByPointer.get(e.pointerId) === b) releaseButton(b);
-          });
           b.addEventListener('contextmenu', e => e.preventDefault());
         });
 

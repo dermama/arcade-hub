@@ -470,6 +470,7 @@ body.player-is-landscape-surface {
 .vg-act-row { display: flex; gap: 8px; }
 /* ── Base button ── */
 .vg-btn {
+  position: relative;
   width: 56px; height: 56px;
   border-radius: 50%;
   background: rgba(18, 20, 29, 0.78);
@@ -486,6 +487,14 @@ body.player-is-landscape-surface {
   user-select: none; -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
+}
+/* Generous touch target padding so fast mobile taps never miss */
+.vg-btn::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  pointer-events: auto;
 }
 .vg-btn:active, .vg-btn.active {
   transform: scale(0.90);
@@ -631,7 +640,8 @@ body.player-is-landscape-surface {
 .vg-look-surface {
   position: absolute;
   top: 0; right: 0;
-  width: 50%; height: 100%;
+  width: 50%;
+  height: calc(100% - 170px);
   z-index: 40;
   pointer-events: auto;
   touch-action: none;

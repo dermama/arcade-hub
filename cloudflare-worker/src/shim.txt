@@ -516,10 +516,12 @@
             virtualGamepad.buttons[idx].value = isPressed ? 1.0 : 0.0;
             virtualGamepad.timestamp = performance.now();
 
-            if (idx === 12) virtualGamepad.axes[1] = isPressed ? -1.0 : 0;
-            if (idx === 13) virtualGamepad.axes[1] = isPressed ? 1.0 : 0;
-            if (idx === 14) virtualGamepad.axes[0] = isPressed ? -1.0 : 0;
-            if (idx === 15) virtualGamepad.axes[0] = isPressed ? 1.0 : 0;
+            if (!window.__arcadeAnalogActive) {
+              if (idx === 12) virtualGamepad.axes[1] = isPressed ? -1.0 : 0;
+              if (idx === 13) virtualGamepad.axes[1] = isPressed ? 1.0 : 0;
+              if (idx === 14) virtualGamepad.axes[0] = isPressed ? -1.0 : 0;
+              if (idx === 15) virtualGamepad.axes[0] = isPressed ? 1.0 : 0;
+            }
           }
         }
 
@@ -550,6 +552,11 @@
             if (virtualGamepad.axes && ax >= 0 && ax < 4) {
               virtualGamepad.axes[ax] = val;
               virtualGamepad.timestamp = performance.now();
+              if (Math.abs(val) > 0.05) {
+                window.__arcadeAnalogActive = true;
+              } else if (virtualGamepad.axes[0] === 0 && virtualGamepad.axes[1] === 0) {
+                window.__arcadeAnalogActive = false;
+              }
             }
           }
         });
