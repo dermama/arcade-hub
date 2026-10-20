@@ -152,10 +152,10 @@
     })();
 
     /* ── Device Pixel Ratio Capping (Saves up to 75% GPU fillrate on high-DPI phones) ── */
-    if (perfOn) (function () {
+    (function () {
       try {
         var r0 = window.devicePixelRatio || 1;
-        var maxDpr = window.ARCADE.perf.dpr;
+        var maxDpr = (window.ARCADE && window.ARCADE.perf && window.ARCADE.perf.dpr) || (LOW ? 1.25 : 1.5);
         if (r0 > maxDpr) {
           Object.defineProperty(window, "devicePixelRatio", {
             get: function () { return maxDpr; },

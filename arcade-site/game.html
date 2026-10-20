@@ -519,7 +519,7 @@
          shim, which is what actually receives the virtual-gamepad input. Direct
          loads are cross-origin, so the on-screen controls would be decorative. */
       const COARSE = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints || 0) > 0;
-      let useDirect = !COARSE;
+      let useDirect = false;
 
       const BASE = (window.ARCADE && window.ARCADE.proxyBase)
         ? String(window.ARCADE.proxyBase).replace(/\/$/, '')
